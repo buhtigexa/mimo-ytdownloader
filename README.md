@@ -2,6 +2,8 @@
 
 Download MP3 audio from a URL, a text file with one URL per line, or a CSV. For a CSV with `artist` and `title` columns, the app searches for missing URLs and saves them in the same file.
 
+This project is intended for learning and experimentation. Its [0BSD license](LICENSE) covers the source code, not the media downloaded with it. Download only content you are permitted to obtain under applicable law and the platform's terms.
+
 ## Docker
 
 From the repository root, build the image:
