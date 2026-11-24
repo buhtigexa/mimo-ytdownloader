@@ -87,7 +87,7 @@ make bench   # benchmarks
 ```
 
 - Coverage is above 95% in every package.
-- Tests use a fake `yt-dlp` script and a fake clock (`testing/synctest`), so they run fast and need no network.
+- Tests use a fake `yt-dlp` shell script and a fake clock (`testing/synctest`), so they run fast and need no network. They run on Linux and macOS; the program itself also builds for Windows.
 - End-to-end tests run the whole program, including Ctrl-C handling.
 - An architecture test fails the build if `domain` or `application` import an outer layer.
 
