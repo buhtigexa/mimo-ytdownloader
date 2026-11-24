@@ -9,16 +9,20 @@ import (
 	"io"
 )
 
-const Usage = `usage: ytgrab [-c config.yml] [-v] [-url-column NAME] <urls.txt | urls.csv | ->
+const Usage = `usage: mimo-ytdownloader [-c config.yml] [-v] [-url-column NAME] <URL | urls.txt | urls.csv | ->
 
 flags:
-  -c, -config FILE      YAML config (default: ./ytgrab.yml)
+  -c, -config FILE      YAML config (default: ./mimo-ytdownloader.yml)
   -v, -verbose          log when each worker picks up a URL
   -url-column NAME      CSV column holding the URLs (default: url)
-  -cpuprofile FILE      write a CPU profile (for PGO: cp it to cmd/ytgrab/default.pgo)
+  -cpuprofile FILE      write a CPU profile (for PGO: cp it to cmd/mimo-ytdownloader/default.pgo)
 
-input: *.csv -> CSV with a header row, URLs read from the url column;
-       anything else -> one URL per line. Both are streamed (any size).
+input: http(s) URL -> download that URL;
+       *.txt -> one URL per line;
+       *.csv -> CSV with a header row, URLs read from the url column;
+       artist + title columns -> missing URLs are searched and saved to CSV;
+       anything else -> one URL per line. URL lists are streamed;
+       song CSVs are loaded into memory while missing URLs are filled.
 
 exit codes: 0 ok, 1 some downloads failed, 2 usage/config error, 130 interrupted
 `
@@ -38,11 +42,11 @@ type Flags struct {
 // ParseFlags parses os.Args[1:] with the standard flag package.
 func ParseFlags(args []string, stderr io.Writer) (Flags, error) {
 	var f Flags
-	fs := flag.NewFlagSet("ytgrab", flag.ContinueOnError)
+	fs := flag.NewFlagSet("mimo-ytdownloader", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.Usage = func() { fmt.Fprint(stderr, Usage) }
-	fs.StringVar(&f.Config, "c", "ytgrab.yml", "")
-	fs.StringVar(&f.Config, "config", "ytgrab.yml", "")
+	fs.StringVar(&f.Config, "c", "mimo-ytdownloader.yml", "")
+	fs.StringVar(&f.Config, "config", "mimo-ytdownloader.yml", "")
 	fs.BoolVar(&f.Verbose, "v", false, "")
 	fs.BoolVar(&f.Verbose, "verbose", false, "")
 	fs.StringVar(&f.CPUProfile, "cpuprofile", "", "")
@@ -54,11 +58,11 @@ func ParseFlags(args []string, stderr io.Writer) (Flags, error) {
 	}
 	switch fs.NArg() {
 	case 0:
-		return Flags{}, errors.New("missing input file")
+		return Flags{}, errors.New("missing URL or input file")
 	case 1:
 		f.Input = fs.Arg(0)
 		return f, nil
 	default:
-		return Flags{}, errors.New("only one input file allowed")
+		return Flags{}, errors.New("only one URL or input file allowed")
 	}
 }

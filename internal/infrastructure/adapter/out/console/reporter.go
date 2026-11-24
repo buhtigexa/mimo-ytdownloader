@@ -15,10 +15,11 @@ import (
 // Reporter writes one line per event. A mutex keeps lines from different
 // goroutines from interleaving.
 type Reporter struct {
-	mu      sync.Mutex
-	w       io.Writer
-	verbose bool
-	done    atomic.Int64
+	mu           sync.Mutex
+	w            io.Writer
+	verbose      bool
+	done         atomic.Int64
+	searchFailed int
 }
 
 var _ portout.ProgressReporter = (*Reporter)(nil)
@@ -27,6 +28,9 @@ var _ portout.ProgressReporter = (*Reporter)(nil)
 func New(w io.Writer, verbose bool) *Reporter {
 	return &Reporter{w: w, verbose: verbose}
 }
+
+// SetSearchFailures includes tracks without a usable URL in the final report.
+func (r *Reporter) SetSearchFailures(n int) { r.searchFailed = n }
 
 func (r *Reporter) printf(format string, a ...any) {
 	r.mu.Lock()
@@ -44,12 +48,14 @@ func (r *Reporter) Duplicate(d domain.Duplicate) {
 
 func (r *Reporter) Started(worker int, job domain.Job) {
 	if r.verbose {
-		r.printf("  [w%02d] start  %s\n", worker, job.URL)
+		r.printf("  [w%02d] start  line %d: %s\n", worker, job.Line, trackName(job))
+	} else {
+		r.printf("  start  line %d: %s\n", job.Line, trackName(job))
 	}
 }
 
 func (r *Reporter) Retrying(job domain.Job, attempt int, err error) {
-	r.printf("  retry  %s (attempt %d failed: %v)\n", job.URL, attempt, err)
+	r.printf("  retry  %s (attempt %d failed: %v)\n", trackName(job), attempt, err)
 }
 
 func (r *Reporter) Finished(o domain.Outcome) {
@@ -62,17 +68,26 @@ func (r *Reporter) Finished(o domain.Outcome) {
 
 	switch o.Status {
 	case domain.StatusSaved:
-		r.printf("[%6d] ok      %6.1fs  %s%s\n", n, secs, o.Path, tries)
+		r.printf("[%6d] ok      %6.1fs  %s -> %s%s\n", n, secs, trackName(o.Job), o.Path, tries)
 	case domain.StatusSkipped:
-		r.printf("[%6d] skip    %6.1fs  %s (already downloaded)\n", n, secs, o.Job.URL)
+		r.printf("[%6d] skip    %6.1fs  %s (already downloaded)\n", n, secs, trackName(o.Job))
 	case domain.StatusFailed:
-		r.printf("[%6d] FAIL    %6.1fs  line %d: %s -> %v%s\n", n, secs, o.Job.Line, o.Job.URL, o.Err, tries)
+		r.printf("[%6d] FAIL    %6.1fs  line %d: %s -> %v%s\n", n, secs, o.Job.Line, trackName(o.Job), o.Err, tries)
 	case domain.StatusCanceled:
-		r.printf("[%6d] cancel  %6.1fs  %s\n", n, secs, o.Job.URL)
+		r.printf("[%6d] cancel  %6.1fs  %s\n", n, secs, trackName(o.Job))
 	}
 }
 
 func (r *Reporter) Summary(s domain.Summary) {
+	s.Failed += r.searchFailed
+	s.Total += r.searchFailed
 	r.printf("\ndone in %.1fs: %d saved, %d skipped, %d failed, %d canceled (of %d; %d duplicates ignored)\n",
 		s.Elapsed.Seconds(), s.Saved, s.Skipped, s.Failed, s.Canceled, s.Total, s.Duplicates)
+}
+
+func trackName(job domain.Job) string {
+	if job.Label != "" {
+		return job.Label
+	}
+	return job.URL
 }

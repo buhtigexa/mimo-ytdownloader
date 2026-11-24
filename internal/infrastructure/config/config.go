@@ -135,7 +135,13 @@ func (c *Config) normalize() {
 	case c.YtDlp.ArchiveFile != "":
 		c.YtDlp.ArchiveFile = expandHome(c.YtDlp.ArchiveFile)
 	default:
-		c.YtDlp.ArchiveFile = filepath.Join(c.OutputDir, ".ytgrab-archive.txt")
+		c.YtDlp.ArchiveFile = filepath.Join(c.OutputDir, ".mimo-ytdownloader-archive.txt")
+		legacy := filepath.Join(c.OutputDir, ".ytgrab-archive.txt")
+		if _, err := os.Stat(c.YtDlp.ArchiveFile); errors.Is(err, os.ErrNotExist) {
+			if _, err := os.Stat(legacy); err == nil {
+				c.YtDlp.ArchiveFile = legacy
+			}
+		}
 	}
 	c.YtDlp.ConcurrentFragments = max(c.YtDlp.ConcurrentFragments, 1)
 }

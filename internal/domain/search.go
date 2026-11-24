@@ -6,9 +6,8 @@ import "strings"
 // YouTube Music), e.g. youtube.com/results?search_query=... or
 // music.youtube.com/search?q=...
 //
-// Rule: ytgrab downloads the URLs it is given; it never turns a search into
-// downloads. yt-dlp would treat a results page as a list of videos, so these
-// URLs are rejected as invalid input.
+// A search-results page is not a video URL. yt-dlp would treat it as a list
+// of videos, so it is rejected as invalid download input.
 func IsSearchPage(url string) bool {
 	host, path, _, ok := parseURL(url)
 	if !ok || !isYouTubeHost(host) {

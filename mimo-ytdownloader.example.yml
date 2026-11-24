@@ -1,6 +1,6 @@
-# ytgrab config. Only output_dir is required; everything else shows its default.
+# mimo-ytdownloader config. Only output_dir is required; everything else shows its default.
 
-output_dir: ~/Music/ytgrab      # where files land (created if missing; ~ is expanded)
+output_dir: ./out               # where files land (created if missing)
 workers: 4                      # parallel downloads (1..64). YouTube throttles past ~6-8
 attempts: 3                     # tries per URL for transient errors (429, 5xx, timeouts)
 retry_backoff_secs: 5           # wait N*backoff before retry N
@@ -16,11 +16,11 @@ audio:
   embed_thumbnail: false        # cover art (needs ffmpeg; not supported for wav)
 
 ytdlp:
-  path: ~/.local/bin/yt-dlp     # binary name or path (pipx install yt-dlp)
+  path: yt-dlp                  # binary name or path (pipx install yt-dlp)
   # ffmpeg_location: /opt/ffmpeg/bin
   output_template: "%(title)s [%(id)s].%(ext)s"
   skip_existing: true           # download archive: re-runs skip finished URLs
-  # archive_file: ~/Music/ytgrab/.ytgrab-archive.txt   # default: <output_dir>/.ytgrab-archive.txt
+  # archive_file: ./out/.mimo-ytdownloader-archive.txt   # default: <output_dir>/.mimo-ytdownloader-archive.txt
   concurrent_fragments: 4       # parallel fragment fetch inside each download
   # cookies_from_browser: firefox   # for age-restricted / members-only videos
   extra_args: []                # passed verbatim to yt-dlp, e.g. ["--limit-rate", "5M"]

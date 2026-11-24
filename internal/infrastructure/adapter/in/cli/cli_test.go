@@ -23,12 +23,12 @@ func TestParseFlags(t *testing.T) {
 	}{
 		{[]string{"-c", "x.yml", "-v", "urls.txt"}, Flags{Config: "x.yml", Input: "urls.txt", Verbose: true, URLColumn: "url"}, ""},
 		{[]string{"-config=y.yml", "urls.txt"}, Flags{Config: "y.yml", Input: "urls.txt", URLColumn: "url"}, ""},
-		{[]string{"urls.txt"}, Flags{Config: "ytgrab.yml", Input: "urls.txt", URLColumn: "url"}, ""},
-		{[]string{"-"}, Flags{Config: "ytgrab.yml", Input: "-", URLColumn: "url"}, ""},
-		{[]string{}, Flags{}, "missing input"},
-		{[]string{"a", "b"}, Flags{}, "only one input"},
+		{[]string{"urls.txt"}, Flags{Config: "mimo-ytdownloader.yml", Input: "urls.txt", URLColumn: "url"}, ""},
+		{[]string{"-"}, Flags{Config: "mimo-ytdownloader.yml", Input: "-", URLColumn: "url"}, ""},
+		{[]string{}, Flags{}, "missing URL or input"},
+		{[]string{"a", "b"}, Flags{}, "only one URL or input"},
 		{[]string{"-nope", "a"}, Flags{}, "not defined"},
-		{[]string{"a", "-c"}, Flags{}, "only one input"}, // flag pkg stops at first positional
+		{[]string{"a", "-c"}, Flags{}, "only one URL or input"}, // flag pkg stops at first positional
 		{[]string{"-c"}, Flags{}, "needs an argument"},
 	}
 	for _, tt := range tests {
@@ -112,10 +112,10 @@ func TestCSVJobs(t *testing.T) {
 			want: []row{{2, "https://a.test/3", false}},
 		},
 		{
-			name:    "no url column: clear error, no search",
+			name:    "no url column: reader reports clear error",
 			in:      "year,rank,artist,title\n1980,1,Blondie,Call Me\n",
 			col:     "url",
-			wantErr: "does not search by artist or title",
+			wantErr: "csv has no \"url\" column",
 		},
 		{
 			name: "search pages are rejected, stream continues",
@@ -162,6 +162,11 @@ func TestJobsPicksFormatByExtension(t *testing.T) {
 	got, err = collect(t, Jobs("-", strings.NewReader("https://a.test/x\n"), "url"))
 	if err != nil || len(got) != 1 {
 		t.Errorf("stdin: %v, %v", got, err)
+	}
+	url := "https://youtu.be/dQw4w9WgXcQ"
+	got, err = collect(t, Jobs(url, nil, "url"))
+	if err != nil || !slices.Equal(got, []row{{1, url, false}}) {
+		t.Errorf("direct URL: %v, %v", got, err)
 	}
 }
 

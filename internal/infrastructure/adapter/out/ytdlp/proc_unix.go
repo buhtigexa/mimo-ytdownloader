@@ -12,8 +12,8 @@ import (
 // done, sends SIGTERM to the whole group: yt-dlp and any ffmpeg it spawned.
 // If they are still alive after WaitDelay, exec kills the child with SIGKILL.
 //
-// Being in its own group also means a terminal Ctrl-C reaches only ytgrab;
-// ytgrab then cancels ctx and stops every download cleanly.
+// Being in its own group also means a terminal Ctrl-C reaches only mimo-ytdownloader;
+// mimo-ytdownloader then cancels ctx and stops every download cleanly.
 func killGroupOnCancel(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error {

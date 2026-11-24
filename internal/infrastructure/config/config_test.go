@@ -61,13 +61,33 @@ func TestDefaultsAndBeans(t *testing.T) {
 		t.Error("expand_playlists: false ignored")
 	}
 	yp := c.YtDlpProperties()
-	if yp.Format != ytdlp.WAV || yp.ArchiveFile != "/m/.ytgrab-archive.txt" || yp.Bin != "yt-dlp" {
+	if yp.Format != ytdlp.WAV || yp.ArchiveFile != "/m/.mimo-ytdownloader-archive.txt" || yp.Bin != "yt-dlp" {
 		t.Errorf("props = %+v", yp)
 	}
 
 	c, _ = Parse([]byte("output_dir: /m\nytdlp:\n  skip_existing: false\n  archive_file: /x\n"))
 	if c.YtDlp.ArchiveFile != "" {
 		t.Errorf("skip_existing=false must disable the archive, got %q", c.YtDlp.ArchiveFile)
+	}
+}
+
+func TestArchiveNameKeepsExistingHistory(t *testing.T) {
+	dir := t.TempDir()
+	legacy := filepath.Join(dir, ".ytgrab-archive.txt")
+	if err := os.WriteFile(legacy, []byte("old downloads\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Parse([]byte("output_dir: " + dir + "\n"))
+	if err != nil || c.YtDlp.ArchiveFile != legacy {
+		t.Fatalf("archive=%q err=%v, want existing %q", c.YtDlp.ArchiveFile, err, legacy)
+	}
+	current := filepath.Join(dir, ".mimo-ytdownloader-archive.txt")
+	if err := os.WriteFile(current, []byte("new downloads\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err = Parse([]byte("output_dir: " + dir + "\n"))
+	if err != nil || c.YtDlp.ArchiveFile != current {
+		t.Fatalf("archive=%q err=%v, want current %q", c.YtDlp.ArchiveFile, err, current)
 	}
 }
 

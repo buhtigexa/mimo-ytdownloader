@@ -8,7 +8,7 @@
   "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/ecsTaskExecutionRole",
   "containerDefinitions": [
     {
-      "name": "ytgrab",
+      "name": "mimo-ytdownloader",
       "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/mimo-ytdownloader:latest",
       "essential": true,
       "command": ["/data/urls.txt"],
@@ -19,7 +19,7 @@
         "options": {
           "awslogs-group": "/ecs/mimo-ytdownloader",
           "awslogs-region": "<REGION>",
-          "awslogs-stream-prefix": "ytgrab",
+          "awslogs-stream-prefix": "mimo-ytdownloader",
           "awslogs-create-group": "true"
         }
       }

@@ -13,7 +13,7 @@ ARG TARGETOS TARGETARCH
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -buildvcs=false -pgo=auto -ldflags="-s -w" -o /out/ytgrab ./cmd/ytgrab
+    go build -trimpath -buildvcs=false -pgo=auto -ldflags="-s -w" -o /out/mimo-ytdownloader ./cmd/mimo-ytdownloader
 
 # ---- runtime: yt-dlp (Python) + ffmpeg + the binary ----
 FROM python:3.13-alpine
@@ -23,19 +23,19 @@ FROM python:3.13-alpine
 ARG YTDLP_VERSION=2026.11.23
 RUN apk add --no-cache ffmpeg tini \
  && pip install --no-cache-dir "yt-dlp==${YTDLP_VERSION}" \
- && adduser -D -u 10001 ytgrab \
+ && adduser -D -u 10001 mimo-ytdownloader \
  && mkdir -p /data \
- && chown ytgrab:ytgrab /data
+ && chown mimo-ytdownloader:mimo-ytdownloader /data
 
-COPY --from=build /out/ytgrab /usr/local/bin/ytgrab
-COPY deploy/ytgrab.yml /etc/ytgrab/ytgrab.yml
+COPY --from=build /out/mimo-ytdownloader /usr/local/bin/mimo-ytdownloader
+COPY deploy/mimo-ytdownloader.yml /etc/mimo-ytdownloader/mimo-ytdownloader.yml
 
-USER ytgrab
+USER mimo-ytdownloader
 WORKDIR /data
 VOLUME /data
 
-# tini is PID 1: it forwards SIGTERM/SIGINT to ytgrab (clean stop on
+# tini is PID 1: it forwards SIGTERM/SIGINT to mimo-ytdownloader (clean stop on
 # `docker stop` or an ECS task stop) and reaps orphaned ffmpeg processes.
-ENTRYPOINT ["/sbin/tini", "--", "ytgrab", "-c", "/etc/ytgrab/ytgrab.yml"]
+ENTRYPOINT ["/sbin/tini", "--", "mimo-ytdownloader", "-c", "/etc/mimo-ytdownloader/mimo-ytdownloader.yml"]
 # Default input: /data/urls.txt. Override with any file under /data, or "-" for stdin.
 CMD ["/data/urls.txt"]

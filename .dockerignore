@@ -2,5 +2,5 @@
 bin
 coverage.out
 *.pprof
-ytgrab.yml
+mimo-ytdownloader.yml
 data

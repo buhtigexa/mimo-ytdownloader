@@ -18,9 +18,9 @@ import (
 // throughput, small enough to keep memory flat.
 const readBuf = 1 << 20
 
-// Jobs streams the jobs in path ("-" = stdin) without loading the file:
-// memory stays constant whatever its size.
+// Jobs reads a direct URL, a file, or stdin ("-"). File input is streamed.
 //
+//   - http(s) URL: one job
 //   - *.csv: RFC 4180 CSV with a header row; URLs are taken from urlColumn
 //     (case-insensitive). Other columns are ignored.
 //   - anything else: one URL per line; blank lines and '#' comments ignored,
@@ -30,6 +30,10 @@ const readBuf = 1 << 20
 // continues; I/O errors and a missing URL column end it.
 func Jobs(path string, stdin io.Reader, urlColumn string) iter.Seq2[domain.Job, error] {
 	return func(yield func(domain.Job, error) bool) {
+		if isDirectURL(path) {
+			yield(record(1, path))
+			return
+		}
 		var r io.Reader = stdin
 		if path != "-" {
 			f, err := os.Open(path)
@@ -48,6 +52,10 @@ func Jobs(path string, stdin io.Reader, urlColumn string) iter.Seq2[domain.Job, 
 		}
 		textJobs(br)(yield)
 	}
+}
+
+func isDirectURL(input string) bool {
+	return strings.HasPrefix(input, "https://") || strings.HasPrefix(input, "http://")
 }
 
 // textJobs parses one URL per line.
@@ -88,15 +96,22 @@ func csvJobs(r io.Reader, urlColumn string) iter.Seq2[domain.Job, error] {
 			return
 		}
 		col := -1
+		artistCol, titleCol := -1, -1
 		for i, h := range header {
-			if strings.EqualFold(strings.TrimSpace(strings.TrimPrefix(h, "\ufeff")), urlColumn) {
+			name := strings.TrimSpace(strings.TrimPrefix(h, "\ufeff"))
+			if strings.EqualFold(name, "artist") {
+				artistCol = i
+			}
+			if strings.EqualFold(name, "title") {
+				titleCol = i
+			}
+			if strings.EqualFold(name, urlColumn) {
 				col = i
-				break
 			}
 		}
 		if col < 0 {
 			yield(domain.Job{}, fmt.Errorf(
-				"csv has no %q column (columns: %s). ytgrab downloads URLs; it does not search by artist or title",
+				"csv has no %q column (columns: %s). Provide that URL column or artist and title columns",
 				urlColumn, strings.Join(header, ", ")))
 			return
 		}
@@ -129,7 +144,11 @@ func csvJobs(r io.Reader, urlColumn string) iter.Seq2[domain.Job, error] {
 			}
 			// Clone: the field shares memory with the whole row; keeping it
 			// would pin every row in memory.
-			if !yield(record(line, strings.Clone(url))) {
+			job, recordErr := record(line, strings.Clone(url))
+			if artistCol >= 0 && titleCol >= 0 && artistCol < len(rec) && titleCol < len(rec) {
+				job.Label = strings.TrimSpace(rec[artistCol]) + " / " + strings.TrimSpace(rec[titleCol])
+			}
+			if !yield(job, recordErr) {
 				return
 			}
 		}

@@ -1,11 +1,11 @@
-# Local run:  mkdir -p data && cp urls.txt data/ && docker compose run --rm ytgrab
+# Local run:  mkdir -p data && cp urls.txt data/ && docker compose run --rm mimo-ytdownloader
 services:
-  ytgrab:
+  mimo-ytdownloader:
     build: .
     image: mimo-ytdownloader:latest
     # Run as your own user so files in ./data belong to you (Linux).
     # Defaults to 1000:1000; set HOST_UID/HOST_GID if yours differ (see `id`).
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     volumes:
-      - ./data:/data            # input files in, downloads out (./data/out)
+      - ${MIMO_YTDOWNLOADER_DATA_DIR:-./data}:/data  # input files in, downloads out (<mounted directory>/out)
     command: ["/data/urls.txt"]

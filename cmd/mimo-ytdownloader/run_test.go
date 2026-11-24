@@ -45,7 +45,7 @@ func yamlConfig(dir, bin, extra string) string {
 
 func TestRunDownloadsEverything(t *testing.T) {
 	dir := t.TempDir()
-	cfg := writeFile(t, dir, "ytgrab.yml", yamlConfig(dir, fakeYtDlp(t, dir), ""))
+	cfg := writeFile(t, dir, "mimo-ytdownloader.yml", yamlConfig(dir, fakeYtDlp(t, dir), ""))
 	urls := writeFile(t, dir, "urls.txt",
 		"https://youtu.be/bbbbbbbbbb1\nhttps://www.youtube.com/playlist?list=PL1\nhttps://youtu.be/aaaaaaaaaa1\n")
 	profile := filepath.Join(dir, "cpu.pprof")
@@ -61,9 +61,20 @@ func TestRunDownloadsEverything(t *testing.T) {
 	}
 }
 
+func TestRunDownloadsDirectURL(t *testing.T) {
+	dir := t.TempDir()
+	cfg := writeFile(t, dir, "mimo-ytdownloader.yml", yamlConfig(dir, fakeYtDlp(t, dir), ""))
+	url := "https://youtu.be/bbbbbbbbbb1"
+	var out strings.Builder
+	code := run([]string{"-c", cfg, url}, nil, &out)
+	if code != 0 || !strings.Contains(out.String(), "1 saved") || !strings.Contains(out.String(), url) {
+		t.Fatalf("exit %d:\n%s", code, out.String())
+	}
+}
+
 func TestRunReadsStdinWithoutPlaylists(t *testing.T) {
 	dir := t.TempDir()
-	cfg := writeFile(t, dir, "ytgrab.yml", yamlConfig(dir, fakeYtDlp(t, dir), "expand_playlists: false\n"))
+	cfg := writeFile(t, dir, "mimo-ytdownloader.yml", yamlConfig(dir, fakeYtDlp(t, dir), "expand_playlists: false\n"))
 
 	var out strings.Builder
 	code := run([]string{"-c", cfg, "-"}, strings.NewReader("https://youtu.be/bbbbbbbbbb1\nnot-a-url\n"), &out)

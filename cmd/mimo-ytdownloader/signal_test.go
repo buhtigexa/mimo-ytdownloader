@@ -11,7 +11,7 @@ import (
 
 func TestRunStopsOnCtrlC(t *testing.T) {
 	dir := t.TempDir()
-	cfg := writeFile(t, dir, "ytgrab.yml", yamlConfig(dir, fakeYtDlp(t, dir), ""))
+	cfg := writeFile(t, dir, "mimo-ytdownloader.yml", yamlConfig(dir, fakeYtDlp(t, dir), ""))
 	urls := writeFile(t, dir, "urls.txt", "https://example.com/slow\n")
 
 	// Ctrl-C arrives while the download is running. run has already turned

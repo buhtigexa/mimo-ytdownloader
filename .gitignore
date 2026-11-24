@@ -1,8 +1,9 @@
 bin/
-/ytgrab.yml
+/mimo-ytdownloader.yml
 *.pprof
 __pycache__/
 .ytgrab-archive.txt
-cmd/ytgrab/default.pgo
+.mimo-ytdownloader-archive.txt
+cmd/mimo-ytdownloader/default.pgo
 coverage.out
 data/

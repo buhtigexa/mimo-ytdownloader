@@ -1,4 +1,4 @@
-// Command ytgrab downloads the audio of every URL in a file, in parallel,
+// Command mimo-ytdownloader downloads the audio of every URL in a file, in parallel,
 // via yt-dlp.
 //
 // main is the composition root: it loads config, builds the adapters, wires
@@ -49,14 +49,14 @@ func run(args []string, stdin io.Reader, stderr io.Writer) int {
 		return cli.ExitOK
 	}
 	if err != nil {
-		fmt.Fprintf(stderr, "ytgrab: %v\n\n%s", err, cli.Usage)
+		fmt.Fprintf(stderr, "mimo-ytdownloader: %v\n\n%s", err, cli.Usage)
 		return cli.ExitUsage
 	}
 
 	if flags.CPUProfile != "" {
 		stop, err := startCPUProfile(flags.CPUProfile)
 		if err != nil {
-			fmt.Fprintf(stderr, "ytgrab: %v\n", err)
+			fmt.Fprintf(stderr, "mimo-ytdownloader: %v\n", err)
 			return cli.ExitUsage
 		}
 		defer stop()
@@ -70,7 +70,7 @@ func run(args []string, stdin io.Reader, stderr io.Writer) int {
 	cancelNotice := context.AfterFunc(ctx, func() {
 		defer close(noticed)
 		stop()
-		fmt.Fprintln(stderr, "\nytgrab: interrupted, stopping (Ctrl-C again to force)")
+		fmt.Fprintln(stderr, "\nmimo-ytdownloader: interrupted, stopping (Ctrl-C again to force)")
 	})
 	defer func() {
 		// Normal exit: unregister the notice. Interrupted: wait until it is printed.
@@ -81,7 +81,10 @@ func run(args []string, stdin io.Reader, stderr io.Writer) int {
 
 	sum, err := app(ctx, flags, stdin, stderr)
 	if err != nil {
-		fmt.Fprintf(stderr, "ytgrab: %v\n", err)
+		fmt.Fprintf(stderr, "mimo-ytdownloader: %v\n", err)
+		if errors.Is(err, context.Canceled) {
+			return cli.ExitInterrupted
+		}
 		return cli.ExitUsage
 	}
 	return cli.ExitCode(sum)
@@ -107,7 +110,15 @@ func app(ctx context.Context, flags cli.Flags, stdin io.Reader, stderr io.Writer
 	if err != nil {
 		return domain.Summary{}, err
 	}
+	searchFailed := 0
+	if flags.URLColumn == "url" {
+		searchFailed, err = cli.EnrichCSV(ctx, flags.Input, ytdlp.NewSongResolver(props.Bin), stderr, cfg.DownloadPolicy())
+		if err != nil {
+			return domain.Summary{}, err
+		}
+	}
 	reporter := console.New(stderr, flags.Verbose)
+	reporter.SetSearchFailures(searchFailed)
 	var playlists portout.PlaylistResolver // nil interface: expansion disabled
 	if cfg.ExpandPlaylists {
 		playlists = ytdlp.NewResolver(props)
@@ -117,9 +128,12 @@ func app(ctx context.Context, flags cli.Flags, stdin io.Reader, stderr io.Writer
 	uc := usecase.NewDownloadBatch(downloader, playlists, reporter, cfg.DownloadPolicy())
 
 	// in adapter
-	fmt.Fprintf(stderr, "ytgrab: %s -> %s as %s (up to %d workers, yt-dlp %s, %d already in archive)\n\n",
+	fmt.Fprintf(stderr, "mimo-ytdownloader: %s -> %s as %s (up to %d workers, yt-dlp %s, %d already in archive)\n\n",
 		flags.Input, cfg.OutputDir, props.Format, cfg.Workers, version, downloader.Archived())
-	return cli.NewController(uc, stdin, flags.URLColumn).Handle(ctx, flags.Input)
+	sum, err := cli.NewController(uc, stdin, flags.URLColumn).Handle(ctx, flags.Input)
+	sum.Failed += searchFailed
+	sum.Total += searchFailed
+	return sum, err
 }
 
 func startCPUProfile(path string) (stop func(), err error) {

@@ -1,5 +1,5 @@
-# ytgrab config used inside the container. Mount a volume at /data.
-# To change it, mount your own file over /etc/ytgrab/ytgrab.yml.
+# mimo-ytdownloader config used inside the container. Mount a volume at /data.
+# To change it, mount your own file over /etc/mimo-ytdownloader/mimo-ytdownloader.yml.
 
 output_dir: /data/out           # downloads land here (the archive file too)
 workers: 4                      # parallel downloads (1..64). YouTube throttles past ~6-8
