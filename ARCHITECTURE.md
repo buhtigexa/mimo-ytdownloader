@@ -24,6 +24,8 @@ internal/
     adapter/out/console/            ProgressReporter on stderr
     config/                         YAML -> Config, DownloadPolicy, ytdlp.Properties
   architecture/                     test that enforces the dependency rules
+deploy/                             container config and the AWS ECS task definition
+Dockerfile, compose.yaml            container image and local Docker Compose setup
 ```
 
 ## Rules

@@ -1,0 +1,38 @@
+{
+  "family": "mimo-ytdownloader",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "1024",
+  "memory": "2048",
+  "runtimePlatform": { "cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX" },
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "ytgrab",
+      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/mimo-ytdownloader:latest",
+      "essential": true,
+      "command": ["/data/urls.txt"],
+      "stopTimeout": 30,
+      "mountPoints": [{ "sourceVolume": "data", "containerPath": "/data" }],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/mimo-ytdownloader",
+          "awslogs-region": "<REGION>",
+          "awslogs-stream-prefix": "ytgrab",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "data",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "<EFS_ID>",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": { "accessPointId": "<EFS_ACCESS_POINT_ID>", "iam": "DISABLED" }
+      }
+    }
+  ]
+}

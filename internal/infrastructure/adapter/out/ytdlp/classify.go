@@ -29,6 +29,12 @@ func classify(stderr []byte, exitCode int) error {
 	if msg == "" {
 		return fmt.Errorf("%w: yt-dlp exited with code %d", domain.ErrPermanent, exitCode)
 	}
+	// A client error (4xx) means the URL itself is wrong: retrying won't help,
+	// even though yt-dlp also says "Unable to download webpage". 429 (rate
+	// limit) is the exception.
+	if strings.Contains(msg, "HTTP Error 4") && !strings.Contains(msg, "HTTP Error 429") {
+		return fmt.Errorf("%w: %s", domain.ErrPermanent, msg)
+	}
 	for _, p := range transient {
 		if strings.Contains(msg, p) {
 			return fmt.Errorf("%w: %s", domain.ErrTransient, msg)

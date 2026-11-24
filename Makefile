@@ -8,7 +8,7 @@ GOAMD64 ?= v3
 # -pgo=auto: uses cmd/ytgrab/default.pgo when present (profile-guided optimization).
 BUILD_FLAGS := -trimpath -buildvcs=false -pgo=auto -ldflags="-s -w"
 
-.PHONY: build test race cover cross bench vet pgo clean
+.PHONY: build test race cover cross bench vet pgo docker clean
 
 build:
 	CGO_ENABLED=0 GOAMD64=$(GOAMD64) $(GO) build $(BUILD_FLAGS) -o $(BIN) ./cmd/ytgrab
@@ -41,6 +41,10 @@ bench:
 #   make pgo URLS=urls.txt && make build
 pgo: build
 	./$(BIN) -cpuprofile cmd/ytgrab/default.pgo $(URLS)
+
+# Builds the Docker image (yt-dlp + ffmpeg + ytgrab).
+docker:
+	docker build -t mimo-ytdownloader .
 
 clean:
 	rm -rf bin coverage.out

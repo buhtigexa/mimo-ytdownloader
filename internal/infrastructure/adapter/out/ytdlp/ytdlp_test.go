@@ -111,6 +111,9 @@ func TestClassify(t *testing.T) {
 		{"ERROR: first\nsome trailing noise\n", domain.ErrPermanent, "first"},
 		{"just noise\n", domain.ErrPermanent, "just noise"},
 		{"", domain.ErrPermanent, "exited with code 1"},
+		{"ERROR: [generic] x: Unable to download webpage: HTTP Error 404: Not Found", domain.ErrPermanent, "HTTP Error 404"},
+		{"ERROR: Unable to download webpage: HTTP Error 403: Forbidden", domain.ErrPermanent, "HTTP Error 403"},
+		{"ERROR: Unable to download webpage: HTTP Error 503: Service Unavailable", domain.ErrTransient, "HTTP Error 503"},
 	}
 	for _, tt := range tests {
 		err := classify([]byte(tt.stderr), 1)

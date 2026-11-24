@@ -1,0 +1,6 @@
+.git
+bin
+coverage.out
+*.pprof
+ytgrab.yml
+data
