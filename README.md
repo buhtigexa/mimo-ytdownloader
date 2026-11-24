@@ -1,26 +1,26 @@
 # mimo-ytdownloader
 
-Descarga audio MP3 desde una URL, un archivo de texto con una URL por línea o un CSV. En un CSV con columnas `artist` y `title`, busca las URL que falten y las agrega al mismo archivo.
+Download MP3 audio from a URL, a text file with one URL per line, or a CSV. For a CSV with `artist` and `title` columns, the app searches for missing URLs and saves them in the same file.
 
 ## Docker
 
-Desde la raíz del repositorio, construye la imagen:
+From the repository root, build the image:
 
 ```bash
 docker compose build mimo-ytdownloader
 ```
 
-Indica la carpeta que contiene tus archivos y ejecuta con una URL directa, una lista de URL o un CSV:
+Set the directory containing your files, then run the app with a direct URL, a URL list, or a CSV:
 
 ```bash
-export MIMO_YTDOWNLOADER_DATA_DIR="/ruta/a/tus/archivos"
-docker compose run --rm mimo-ytdownloader "https://www.youtube.com/watch?v=ID_DEL_VIDEO"
+export MIMO_YTDOWNLOADER_DATA_DIR="/path/to/your/files"
+docker compose run --rm mimo-ytdownloader "https://www.youtube.com/watch?v=VIDEO_ID"
 docker compose run --rm mimo-ytdownloader /data/urls.txt
-docker compose run --rm mimo-ytdownloader /data/archivo.csv
+docker compose run --rm mimo-ytdownloader /data/songs.csv
 ```
 
-`MIMO_YTDOWNLOADER_DATA_DIR` es la carpeta del equipo donde están las listas y los CSV. Dentro del contenedor aparece como `/data`. Si omites la variable, se usa `./data` en la raíz del repositorio.
+`MIMO_YTDOWNLOADER_DATA_DIR` is the host directory containing your URL lists and CSV files. The container sees it as `/data`. If you omit the variable, Compose uses `./data` in the repository root.
 
-Los archivos descargados quedan en la subcarpeta `out/` de la carpeta elegida. Las URL encontradas se guardan en el CSV original al terminar la búsqueda. El progreso y los errores se muestran en la terminal.
+Downloaded files go to the `out/` subdirectory of the selected host directory. Found URLs are saved to the original CSV after the search finishes. Progress and errors appear in the terminal.
 
-Se hacen 4 descargas simultáneas por ejecución y el límite configurable es 5. Cada descarga usa una transferencia de fragmento a la vez.
+Each run starts up to 4 concurrent downloads by default; the configurable maximum is 5. By default, each download transfers one fragment at a time.
