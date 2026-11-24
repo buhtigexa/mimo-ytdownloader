@@ -106,7 +106,6 @@ func csvJobs(r io.Reader, urlColumn string) iter.Seq2[domain.Job, error] {
 			if errors.Is(err, io.EOF) {
 				return
 			}
-			line, _ := cr.FieldPos(0)
 			if pe, ok := errors.AsType[*csv.ParseError](err); ok {
 				if !yield(domain.Job{Line: pe.Line}, fmt.Errorf("%w: line %d: %v", domain.ErrInvalidInput, pe.Line, pe.Err)) {
 					return
@@ -117,6 +116,7 @@ func csvJobs(r io.Reader, urlColumn string) iter.Seq2[domain.Job, error] {
 				yield(domain.Job{}, err)
 				return
 			}
+			line, _ := cr.FieldPos(0) // only valid after a successful Read
 			if col >= len(rec) {
 				if !yield(domain.Job{Line: line}, fmt.Errorf("%w: line %d: missing %q column", domain.ErrInvalidInput, line, urlColumn)) {
 					return

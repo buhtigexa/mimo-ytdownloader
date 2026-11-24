@@ -82,10 +82,14 @@ The real bottleneck is the network and `yt-dlp`, not this tool.
 ```bash
 make test    # vet + tests
 make race    # with the race detector
+make cover   # tests + coverage report, fails below 95%
 make bench   # benchmarks
 ```
 
-Tests use a fake `yt-dlp` script and a fake clock (`testing/synctest`), so they run fast and need no network.
+- Coverage is above 95% in every package.
+- Tests use a fake `yt-dlp` script and a fake clock (`testing/synctest`), so they run fast and need no network.
+- End-to-end tests run the whole program, including Ctrl-C handling.
+- An architecture test fails the build if `domain` or `application` import an outer layer.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how the code is organized.
 

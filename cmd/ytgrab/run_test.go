@@ -1,0 +1,116 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// fakeYtDlp writes a yt-dlp stand-in: it prints a version, expands one
+// playlist into two videos, and "saves" any other URL.
+func fakeYtDlp(t *testing.T, dir string) string {
+	t.Helper()
+	bin := filepath.Join(dir, "yt-dlp")
+	script := `#!/bin/sh
+[ "$1" = --version ] && { echo 2026.11.01; exit 0; }
+for last; do :; done
+case "$last" in
+  *slow*) exec sleep 30 ;;
+  *playlist?list=*) printf 'https://youtu.be/aaaaaaaaaa1\nhttps://youtu.be/aaaaaaaaaa2\n' ;;
+  *) echo "/out/${last##*/}.opus" ;;
+esac
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return bin
+}
+
+// writeFile creates dir/name with content and returns its path.
+func writeFile(t *testing.T, dir, name, content string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func yamlConfig(dir, bin, extra string) string {
+	return "output_dir: " + filepath.Join(dir, "out") + "\naudio:\n  format: original\nytdlp:\n  path: " + bin + "\n" + extra
+}
+
+func TestRunDownloadsEverything(t *testing.T) {
+	dir := t.TempDir()
+	cfg := writeFile(t, dir, "ytgrab.yml", yamlConfig(dir, fakeYtDlp(t, dir), ""))
+	urls := writeFile(t, dir, "urls.txt",
+		"https://youtu.be/bbbbbbbbbb1\nhttps://www.youtube.com/playlist?list=PL1\nhttps://youtu.be/aaaaaaaaaa1\n")
+	profile := filepath.Join(dir, "cpu.pprof")
+
+	var out strings.Builder
+	code := run([]string{"-c", cfg, "-v", "-cpuprofile", profile, urls}, nil, &out)
+
+	if code != 0 || !strings.Contains(out.String(), "3 saved") || !strings.Contains(out.String(), "1 duplicates") {
+		t.Fatalf("exit %d:\n%s", code, out.String())
+	}
+	if fi, err := os.Stat(profile); err != nil || fi.Size() == 0 {
+		t.Errorf("CPU profile not written: %v", err)
+	}
+}
+
+func TestRunReadsStdinWithoutPlaylists(t *testing.T) {
+	dir := t.TempDir()
+	cfg := writeFile(t, dir, "ytgrab.yml", yamlConfig(dir, fakeYtDlp(t, dir), "expand_playlists: false\n"))
+
+	var out strings.Builder
+	code := run([]string{"-c", cfg, "-"}, strings.NewReader("https://youtu.be/bbbbbbbbbb1\nnot-a-url\n"), &out)
+
+	if code != 1 || !strings.Contains(out.String(), "1 saved") || !strings.Contains(out.String(), "1 failed") {
+		t.Fatalf("exit %d:\n%s", code, out.String())
+	}
+}
+
+func TestRunSetupErrors(t *testing.T) {
+	dir := t.TempDir()
+	bin := fakeYtDlp(t, dir)
+	blocker := writeFile(t, dir, "file", "") // a file where a folder is needed
+
+	noOutDir := writeFile(t, dir, "no-out.yml", "output_dir: "+blocker+"/out\nytdlp:\n  path: "+bin+"\n")
+	badArchive := writeFile(t, dir, "bad-archive.yml", yamlConfig(dir, bin, "  archive_file: "+dir+"\n"))
+	good := writeFile(t, dir, "good.yml", yamlConfig(dir, bin, ""))
+
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"unknown flag", []string{"-nope", "urls.txt"}, "flag provided but not defined"},
+		{"missing config", []string{"-c", filepath.Join(dir, "none.yml"), "urls.txt"}, "read config"},
+		{"output folder can't be created", []string{"-c", noOutDir, "urls.txt"}, "not a directory"},
+		{"unreadable archive", []string{"-c", badArchive, "urls.txt"}, "read download archive"},
+		{"bad profile path", []string{"-c", good, "-cpuprofile", blocker + "/cpu.pprof", "urls.txt"}, "not a directory"},
+		{"missing input file", []string{"-c", good, filepath.Join(dir, "none.txt")}, "no such file"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out strings.Builder
+			code := run(tt.args, nil, &out)
+			if code != 2 || !strings.Contains(out.String(), tt.want) {
+				t.Errorf("exit %d, output:\n%s\nwant exit 2 containing %q", code, out.String(), tt.want)
+			}
+		})
+	}
+}
+
+func TestOnlyOneCPUProfileAtATime(t *testing.T) {
+	dir := t.TempDir()
+	stop, err := startCPUProfile(filepath.Join(dir, "a.pprof"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stop()
+	if _, err := startCPUProfile(filepath.Join(dir, "b.pprof")); err == nil {
+		t.Error("a second CPU profile must fail while one is running")
+	}
+}

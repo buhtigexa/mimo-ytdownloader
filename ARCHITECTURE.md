@@ -7,7 +7,7 @@ cmd/ytgrab/main.go                  wiring: config -> adapters -> use case -> CL
 internal/
   domain/                           core rules, no dependencies (stdlib only, no I/O)
     job.go, outcome.go, summary.go  Job, Fetched, Status, Outcome, Summary
-    duplicate.go, videokey.go       one download per video: streaming Deduper, VideoKey
+    duplicate.go, videokey.go       one download per video: streaming Deduper, YouTubeID
     playlist.go                     IsPlaylist: which links get expanded
     search.go                       IsSearchPage: search pages are rejected
     errors.go                       ErrTransient / ErrPermanent / ErrInvalidInput
@@ -52,6 +52,7 @@ read ──► (playlist? ──► resolvers ×W) ──► dedupe ──► do
 
 - **Bounded channels:** a slow stage slows down the ones before it, so memory does not depend on input size.
 - **Dedupe:** a single goroutine owns the `Deduper`, so no locks are needed.
+- **One lock for stderr:** progress lines and the Ctrl-C notice come from different goroutines, so `main` wraps stderr in a small `syncWriter`.
 - **Bad rows** are reported as `FAIL` and the batch continues. A read error (I/O) stops reading and is returned with the summary.
 
 ## Cancellation

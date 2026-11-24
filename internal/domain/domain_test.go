@@ -1,11 +1,8 @@
 package domain
 
-import (
-	"slices"
-	"testing"
-)
+import "testing"
 
-func TestVideoKey(t *testing.T) {
+func TestYouTubeIDForms(t *testing.T) {
 	tests := []struct {
 		url  string
 		want string
@@ -27,12 +24,20 @@ func TestVideoKey(t *testing.T) {
 		{"https://www.youtube.com/playlist?list=PL123", "url:https://www.youtube.com/playlist?list=PL123"},
 		{"https://soundcloud.com/a/b", "url:https://soundcloud.com/a/b"},
 		{"https://youtu.be/", "url:https://youtu.be/"},
+		{"https://youtu.be/dQw4w9WgXc!", "url:https://youtu.be/dQw4w9WgXc!"}, // bad character
+		{"https://www.youtube.com/v/dQw4w9WgXcQ", "youtube:dQw4w9WgXcQ"},
+		{"https://www.youtube.com", "url:https://www.youtube.com"}, // no path
+		{"ftp://youtu.be/dQw4w9WgXcQ", "url:ftp://youtu.be/dQw4w9WgXcQ"},
 		{"https://notyoutube.com/watch?v=dQw4w9WgXcQ", "url:https://notyoutube.com/watch?v=dQw4w9WgXcQ"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.url, func(t *testing.T) {
-			if got := VideoKey(tt.url); got != tt.want {
-				t.Errorf("VideoKey(%q) = %q, want %q", tt.url, got, tt.want)
+			got := "url:" + tt.url
+			if id, ok := YouTubeID(tt.url); ok {
+				got = "youtube:" + id
+			}
+			if got != tt.want {
+				t.Errorf("YouTubeID(%q) gives %q, want %q", tt.url, got, tt.want)
 			}
 		})
 	}
@@ -76,33 +81,6 @@ func TestIsSearchPage(t *testing.T) {
 		if got := IsSearchPage(tt.url); got != tt.want {
 			t.Errorf("IsSearchPage(%q) = %v, want %v", tt.url, got, tt.want)
 		}
-	}
-}
-
-func TestUnique(t *testing.T) {
-	in := []Job{
-		{Line: 1, URL: "https://youtu.be/dQw4w9WgXcQ"},
-		{Line: 2, URL: "https://soundcloud.com/a/b"},
-		{Line: 3, URL: "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=5"},
-		{Line: 4, URL: "https://www.youtube.com/watch?v=jNQXAC9IVRw"},
-		{Line: 5, URL: "https://soundcloud.com/a/b"},
-	}
-	keep, dups := Unique(in)
-
-	var lines []int
-	for _, j := range keep {
-		lines = append(lines, j.Line)
-	}
-	if want := []int{1, 2, 4}; !slices.Equal(lines, want) {
-		t.Errorf("kept lines = %v, want %v", lines, want)
-	}
-
-	var pairs [][2]int
-	for _, d := range dups {
-		pairs = append(pairs, [2]int{d.Job.Line, d.FirstLine})
-	}
-	if want := [][2]int{{3, 1}, {5, 2}}; !slices.Equal(pairs, want) {
-		t.Errorf("dups = %v, want %v", pairs, want)
 	}
 }
 
@@ -155,19 +133,9 @@ func TestSummary(t *testing.T) {
 	}
 }
 
-func BenchmarkVideoKey(b *testing.B) {
-	for b.Loop() {
-		VideoKey("https://www.youtube.com/watch?feature=share&v=dQw4w9WgXcQ&t=42")
-	}
-}
-
-func BenchmarkUnique(b *testing.B) {
-	jobs := make([]Job, 1000)
-	for i := range jobs {
-		jobs[i] = Job{Line: i + 1, URL: "https://youtu.be/dQw4w9WgXc" + string(rune('A'+i%26))}
-	}
+func BenchmarkYouTubeID(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
-		Unique(jobs)
+		YouTubeID("https://www.youtube.com/watch?feature=share&v=dQw4w9WgXcQ&t=42")
 	}
 }

@@ -189,6 +189,22 @@ func TestBackoffIsLinear(t *testing.T) {
 	})
 }
 
+func TestCancelDuringBackoff(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		time.AfterFunc(time.Second, cancel) // the first backoff lasts 5s
+		dl := &scripted{steps: map[string][]step{
+			"https://a.test/1": {failWith(domain.ErrTransient, "429")},
+		}}
+
+		s := run(t, NewDownloadBatch(dl, nil, &recorder{}, policy(1, 3)), ctx, jobs("https://a.test/1"))
+
+		if s.Canceled != 1 || dl.calls.Load() != 1 || s.Elapsed != time.Second {
+			t.Errorf("summary = %+v, calls = %d", s, dl.calls.Load())
+		}
+	})
+}
+
 func TestSameVideoDownloadedOnce(t *testing.T) {
 	dl := &scripted{steps: map[string][]step{"https://youtu.be/dQw4w9WgXcQ": {saved("rick.webm")}}}
 	s := run(t, NewDownloadBatch(dl, nil, &recorder{}, policy(3, 1)), t.Context(), jobs(

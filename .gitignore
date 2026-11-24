@@ -4,3 +4,4 @@ ytgrab.yml
 __pycache__/
 .ytgrab-archive.txt
 cmd/ytgrab/default.pgo
+coverage.out

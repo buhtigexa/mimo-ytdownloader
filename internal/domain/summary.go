@@ -9,7 +9,7 @@ type Summary struct {
 	Skipped    int
 	Failed     int
 	Canceled   int
-	Duplicates int // dropped by Unique, not part of Total
+	Duplicates int // dropped by the Deduper, not part of Total
 	Elapsed    time.Duration
 }
 

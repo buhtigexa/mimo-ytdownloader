@@ -2,24 +2,13 @@ package domain
 
 import "strings"
 
-// VideoKey returns the identity of the video behind a URL:
+// YouTubeID returns the 11-character id of a YouTube video URL. It accepts
 //
-//	youtube.com/watch?v=ID, youtu.be/ID, /shorts/ID, /embed/ID, /live/ID, /v/ID,
-//	www./m./music. hosts, youtube-nocookie.com  ->  "youtube:ID"
-//	anything else                               ->  "url:<url as given>"
+//	youtube.com/watch?v=ID, youtu.be/ID, /shorts/ID, /embed/ID, /live/ID, /v/ID
 //
-// It is allocation-light: only the returned string is allocated.
-func VideoKey(url string) string {
-	if id, ok := youtubeID(url); ok {
-		return "youtube:" + id
-	}
-	return "url:" + url
-}
-
-// YouTubeID returns the 11-char video id of a YouTube video URL.
-func YouTubeID(url string) (string, bool) { return youtubeID(url) }
-
-func youtubeID(url string) (string, bool) {
+// on youtube.com (with or without www., m. or music.) and youtube-nocookie.com.
+// It does not allocate.
+func YouTubeID(url string) (string, bool) {
 	host, path, query, ok := parseURL(url)
 	if !ok {
 		return "", false

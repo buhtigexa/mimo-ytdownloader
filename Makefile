@@ -8,7 +8,7 @@ GOAMD64 ?= v3
 # -pgo=auto: uses cmd/ytgrab/default.pgo when present (profile-guided optimization).
 BUILD_FLAGS := -trimpath -buildvcs=false -pgo=auto -ldflags="-s -w"
 
-.PHONY: build test race bench vet pgo clean
+.PHONY: build test race cover bench vet pgo clean
 
 build:
 	CGO_ENABLED=0 GOAMD64=$(GOAMD64) $(GO) build $(BUILD_FLAGS) -o $(BIN) ./cmd/ytgrab
@@ -22,6 +22,12 @@ race:
 vet:
 	$(GO) vet ./...
 
+# Fails when total test coverage drops below $(MIN_COVER)%.
+MIN_COVER ?= 95
+cover:
+	$(GO) test -coverprofile=coverage.out ./...
+	@$(GO) tool cover -func=coverage.out | awk '/^total:/ { print; if ($$3+0 < $(MIN_COVER)) { print "coverage is below $(MIN_COVER)%"; exit 1 } }'
+
 bench:
 	$(GO) test -run=^$$ -bench=. -benchmem ./internal/...
 
@@ -31,4 +37,4 @@ pgo: build
 	./$(BIN) -cpuprofile cmd/ytgrab/default.pgo $(URLS)
 
 clean:
-	rm -rf bin
+	rm -rf bin coverage.out

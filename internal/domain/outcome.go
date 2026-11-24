@@ -28,21 +28,6 @@ const (
 	StatusCanceled
 )
 
-// String implements fmt.Stringer.
-func (s Status) String() string {
-	switch s {
-	case StatusSaved:
-		return "ok"
-	case StatusSkipped:
-		return "skip"
-	case StatusFailed:
-		return "FAIL"
-	case StatusCanceled:
-		return "cancel"
-	}
-	return "unknown"
-}
-
 // Outcome is what happened to one job.
 type Outcome struct {
 	Job      Job

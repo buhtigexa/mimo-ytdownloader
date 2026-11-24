@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"runtime/pprof"
+	"sync"
 	"syscall"
 
 	portout "github.com/buhtigexa/mimo-ytdownloader/internal/application/port/out"
@@ -27,16 +28,22 @@ import (
 )
 
 func main() {
+	os.Exit(run(os.Args[1:], os.Stdin, os.Stderr))
+}
+
+// run is main without the process exit, so tests can call it.
+func run(args []string, stdin io.Reader, stderr io.Writer) int {
 	// Collect garbage at 50% heap growth instead of 100%: peak memory drops by
 	// about a third and GC CPU stays negligible (this program mostly waits on
 	// yt-dlp). An explicit GOGC in the environment wins.
 	if os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(50)
 	}
-	os.Exit(run(os.Args[1:], os.Stdin, os.Stderr))
-}
 
-func run(args []string, stdin io.Reader, stderr io.Writer) int {
+	// The progress reporter and the Ctrl-C notice write from different
+	// goroutines, so every write to stderr goes through one lock.
+	stderr = &syncWriter{w: stderr}
+
 	flags, err := cli.ParseFlags(args, stderr)
 	if errors.Is(err, cli.ErrHelp) {
 		return cli.ExitOK
@@ -55,18 +62,20 @@ func run(args []string, stdin io.Reader, stderr io.Writer) int {
 		defer stop()
 	}
 
-	// First SIGINT/SIGTERM cancels ctx; once ctx is done, stop() restores the
-	// default handler so a second Ctrl-C kills the process right away.
+	// The first Ctrl-C (or SIGTERM) cancels ctx. stop() then restores the
+	// default handler, so a second Ctrl-C kills the process right away.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		select {
-		case <-ctx.Done():
-			stop()
-			fmt.Fprintln(stderr, "\nytgrab: interrupted, stopping (Ctrl-C again to force)")
-		case <-done:
+	noticed := make(chan struct{})
+	cancelNotice := context.AfterFunc(ctx, func() {
+		defer close(noticed)
+		stop()
+		fmt.Fprintln(stderr, "\nytgrab: interrupted, stopping (Ctrl-C again to force)")
+	})
+	defer func() {
+		// Normal exit: unregister the notice. Interrupted: wait until it is printed.
+		if !cancelNotice() {
+			<-noticed
 		}
 	}()
 
@@ -126,4 +135,16 @@ func startCPUProfile(path string) (stop func(), err error) {
 		pprof.StopCPUProfile()
 		f.Close()
 	}, nil
+}
+
+// syncWriter makes an io.Writer safe for concurrent use.
+type syncWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (s *syncWriter) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.w.Write(p)
 }

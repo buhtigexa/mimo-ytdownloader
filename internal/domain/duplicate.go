@@ -38,11 +38,12 @@ func (d *Deduper) Check(job Job) (firstLine int, dup bool) {
 	return 0, false
 }
 
-// key hashes VideoKey(url) without building the string.
+// key hashes the identity of the video behind url: "youtube:<id>" for
+// YouTube videos, the URL itself for anything else.
 func (d *Deduper) key(url string) uint64 {
 	var h maphash.Hash
 	h.SetSeed(d.seed)
-	if id, ok := youtubeID(url); ok {
+	if id, ok := YouTubeID(url); ok {
 		h.WriteString("youtube:")
 		h.WriteString(id)
 	} else {
@@ -50,19 +51,4 @@ func (d *Deduper) key(url string) uint64 {
 		h.WriteString(url)
 	}
 	return h.Sum64()
-}
-
-// Unique applies the Deduper to a slice, keeping order. Handy for small
-// in-memory batches and tests.
-func Unique(jobs []Job) (keep []Job, dups []Duplicate) {
-	d := NewDeduper()
-	keep = make([]Job, 0, len(jobs))
-	for _, j := range jobs {
-		if line, dup := d.Check(j); dup {
-			dups = append(dups, Duplicate{Job: j, FirstLine: line})
-			continue
-		}
-		keep = append(keep, j)
-	}
-	return keep, dups
 }

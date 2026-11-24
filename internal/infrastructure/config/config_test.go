@@ -26,6 +26,11 @@ func TestParse(t *testing.T) {
 		{"unknown key", "output_dir: /m\ntypo: 1\n", "not found"},
 		{"bad format", "output_dir: /m\naudio:\n  format: ogg\n", "audio.format: unknown audio format"},
 		{"bad yaml", "output_dir: [\n", "yaml"},
+		{"zero attempts", "output_dir: /m\nattempts: 0\n", "attempts must be"},
+		{"negative backoff", "output_dir: /m\nretry_backoff_secs: -1\n", "retry_backoff_secs"},
+		{"empty yt-dlp path", "output_dir: /m\nytdlp:\n  path: \" \"\n", "ytdlp.path is empty"},
+		{"empty template", "output_dir: /m\nytdlp:\n  output_template: \"\"\n", "ytdlp.output_template is empty"},
+		{"custom archive", "output_dir: /m\nytdlp:\n  archive_file: /a.txt\n", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,5 +91,17 @@ func TestLoad(t *testing.T) {
 	}
 	if _, err := Load(filepath.Join(t.TempDir(), "missing.yml")); err == nil {
 		t.Error("want error for missing file")
+	}
+	bad := filepath.Join(t.TempDir(), "bad.yml")
+	os.WriteFile(bad, []byte("workers: 2\n"), 0o600)
+	if _, err := Load(bad); err == nil || !strings.Contains(err.Error(), bad) {
+		t.Errorf("err = %v, want it to name the file", err)
+	}
+}
+
+func TestExpandHomeWithoutHome(t *testing.T) {
+	t.Setenv("HOME", "")
+	if got := expandHome("~/m"); got != "~/m" {
+		t.Errorf("expandHome without HOME = %q, want it unchanged", got)
 	}
 }

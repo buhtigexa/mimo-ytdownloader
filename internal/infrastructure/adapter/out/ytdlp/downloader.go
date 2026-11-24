@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -47,6 +48,12 @@ func New(p Properties) (*Downloader, error) {
 		}
 	}
 	return d, nil
+}
+
+// isDir reports whether p is an existing directory.
+func isDir(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.IsDir()
 }
 
 // Archived returns how many videos the archive already holds.
