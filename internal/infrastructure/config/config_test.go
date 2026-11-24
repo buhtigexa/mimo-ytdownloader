@@ -17,10 +17,11 @@ func TestParse(t *testing.T) {
 		wantErr string // "" = must succeed
 	}{
 		{"minimal", "output_dir: /m\n", ""},
-		{"full", "output_dir: /m\nworkers: 8\nattempts: 5\ntimeout_secs: 60\naudio:\n  format: wav\nytdlp:\n  skip_existing: false\n  extra_args: [\"--limit-rate\", \"5M\"]\n", ""},
+		{"full", "output_dir: /m\nworkers: 5\nattempts: 5\ntimeout_secs: 60\naudio:\n  format: wav\nytdlp:\n  skip_existing: false\n  extra_args: [\"--limit-rate\", \"5M\"]\n", ""},
 		{"missing output_dir", "workers: 2\n", "output_dir is required"},
 		{"empty file", "", "output_dir is required"},
 		{"zero workers", "output_dir: /m\nworkers: 0\n", "workers must be"},
+		{"six workers exceed download limit", "output_dir: /m\nworkers: 6\n", "workers must be 1..5"},
 		{"too many workers", "output_dir: /m\nworkers: 999\n", "workers must be"},
 		{"zero timeout", "output_dir: /m\ntimeout_secs: 0\n", "timeout_secs"},
 		{"unknown key", "output_dir: /m\ntypo: 1\n", "not found"},
@@ -46,12 +47,12 @@ func TestParse(t *testing.T) {
 }
 
 func TestDefaultsAndBeans(t *testing.T) {
-	c, err := Parse([]byte("output_dir: /m\nworkers: 7\naudio:\n  format: wav\n"))
+	c, err := Parse([]byte("output_dir: /m\nworkers: 5\naudio:\n  format: wav\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	p := c.DownloadPolicy()
-	if p.Workers != 7 || p.Attempts != 3 || p.Timeout != 900*time.Second || p.Backoff != 5*time.Second {
+	if p.Workers != 5 || p.Attempts != 3 || p.Timeout != 900*time.Second || p.Backoff != 5*time.Second {
 		t.Errorf("policy = %+v", p)
 	}
 	if !c.ExpandPlaylists {

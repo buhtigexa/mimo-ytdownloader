@@ -1,7 +1,7 @@
 # mimo-ytdownloader config. Only output_dir is required; everything else shows its default.
 
 output_dir: ./out               # where files land (created if missing)
-workers: 4                      # parallel downloads (1..64). YouTube throttles past ~6-8
+workers: 4                      # parallel downloads (1..5)
 attempts: 3                     # tries per URL for transient errors (429, 5xx, timeouts)
 retry_backoff_secs: 5           # wait N*backoff before retry N
 timeout_secs: 900               # deadline per attempt; yt-dlp and ffmpeg are killed when it passes
@@ -21,6 +21,6 @@ ytdlp:
   output_template: "%(title)s [%(id)s].%(ext)s"
   skip_existing: true           # download archive: re-runs skip finished URLs
   # archive_file: ./out/.mimo-ytdownloader-archive.txt   # default: <output_dir>/.mimo-ytdownloader-archive.txt
-  concurrent_fragments: 4       # parallel fragment fetch inside each download
+  concurrent_fragments: 1       # one fragment transfer per download
   # cookies_from_browser: firefox   # for age-restricted / members-only videos
   extra_args: []                # passed verbatim to yt-dlp, e.g. ["--limit-rate", "5M"]

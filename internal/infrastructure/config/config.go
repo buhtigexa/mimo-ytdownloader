@@ -20,7 +20,8 @@ import (
 	"github.com/buhtigexa/mimo-ytdownloader/internal/infrastructure/adapter/out/ytdlp"
 )
 
-const MaxWorkers = 64
+// MaxWorkers bounds simultaneous yt-dlp download processes.
+const MaxWorkers = 5
 
 // Config mirrors the file one to one.
 type Config struct {
@@ -67,7 +68,7 @@ func Default() Config {
 			Path:                "yt-dlp",
 			OutputTemplate:      "%(title)s [%(id)s].%(ext)s",
 			SkipExisting:        true,
-			ConcurrentFragments: 4,
+			ConcurrentFragments: 1,
 		},
 	}
 }

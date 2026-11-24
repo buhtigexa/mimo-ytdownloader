@@ -2,7 +2,7 @@
 # To change it, mount your own file over /etc/mimo-ytdownloader/mimo-ytdownloader.yml.
 
 output_dir: /data/out           # downloads land here (the archive file too)
-workers: 4                      # parallel downloads (1..64). YouTube throttles past ~6-8
+workers: 4                      # parallel downloads (1..5)
 attempts: 3
 retry_backoff_secs: 5
 timeout_secs: 900
@@ -18,5 +18,5 @@ ytdlp:
   path: yt-dlp                  # installed in the image
   output_template: "%(title)s [%(id)s].%(ext)s"
   skip_existing: true           # re-runs skip what is already in /data/out
-  concurrent_fragments: 4
+  concurrent_fragments: 1       # one fragment transfer per download
   extra_args: []

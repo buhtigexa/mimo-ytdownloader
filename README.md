@@ -22,3 +22,5 @@ docker compose run --rm mimo-ytdownloader /data/archivo.csv
 `MIMO_YTDOWNLOADER_DATA_DIR` es la carpeta del equipo donde están las listas y los CSV. Dentro del contenedor aparece como `/data`. Si omites la variable, se usa `./data` en la raíz del repositorio.
 
 Los archivos descargados quedan en la subcarpeta `out/` de la carpeta elegida. Las URL encontradas se guardan en el CSV original al terminar la búsqueda. El progreso y los errores se muestran en la terminal.
+
+Se hacen 4 descargas simultáneas por ejecución y el límite configurable es 5. Cada descarga usa una transferencia de fragmento a la vez.
