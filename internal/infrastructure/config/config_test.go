@@ -1,0 +1,90 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/buhtigexa/mimo-ytdownloader/internal/infrastructure/adapter/out/ytdlp"
+)
+
+func TestParse(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr string // "" = must succeed
+	}{
+		{"minimal", "output_dir: /m\n", ""},
+		{"full", "output_dir: /m\nworkers: 8\nattempts: 5\ntimeout_secs: 60\naudio:\n  format: wav\nytdlp:\n  skip_existing: false\n  extra_args: [\"--limit-rate\", \"5M\"]\n", ""},
+		{"missing output_dir", "workers: 2\n", "output_dir is required"},
+		{"empty file", "", "output_dir is required"},
+		{"zero workers", "output_dir: /m\nworkers: 0\n", "workers must be"},
+		{"too many workers", "output_dir: /m\nworkers: 999\n", "workers must be"},
+		{"zero timeout", "output_dir: /m\ntimeout_secs: 0\n", "timeout_secs"},
+		{"unknown key", "output_dir: /m\ntypo: 1\n", "not found"},
+		{"bad format", "output_dir: /m\naudio:\n  format: ogg\n", "audio.format: unknown audio format"},
+		{"bad yaml", "output_dir: [\n", "yaml"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse([]byte(tt.yaml))
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("unexpected error: %v", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("err = %v, want containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDefaultsAndBeans(t *testing.T) {
+	c, err := Parse([]byte("output_dir: /m\nworkers: 7\naudio:\n  format: wav\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := c.DownloadPolicy()
+	if p.Workers != 7 || p.Attempts != 3 || p.Timeout != 900*time.Second || p.Backoff != 5*time.Second {
+		t.Errorf("policy = %+v", p)
+	}
+	if !c.ExpandPlaylists {
+		t.Error("expand_playlists must default to true")
+	}
+	if c2, _ := Parse([]byte("output_dir: /m\nexpand_playlists: false\n")); c2.ExpandPlaylists {
+		t.Error("expand_playlists: false ignored")
+	}
+	yp := c.YtDlpProperties()
+	if yp.Format != ytdlp.WAV || yp.ArchiveFile != "/m/.ytgrab-archive.txt" || yp.Bin != "yt-dlp" {
+		t.Errorf("props = %+v", yp)
+	}
+
+	c, _ = Parse([]byte("output_dir: /m\nytdlp:\n  skip_existing: false\n  archive_file: /x\n"))
+	if c.YtDlp.ArchiveFile != "" {
+		t.Errorf("skip_existing=false must disable the archive, got %q", c.YtDlp.ArchiveFile)
+	}
+}
+
+func TestExpandHome(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	tests := []struct{ in, want string }{
+		{"~/m", filepath.Join(home, "m")}, {"~", home}, {"/abs", "/abs"}, {"rel", "rel"}, {"", ""},
+	}
+	for _, tt := range tests {
+		if got := expandHome(tt.in); got != tt.want {
+			t.Errorf("expandHome(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestLoad(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "c.yml")
+	os.WriteFile(p, []byte("output_dir: /m\n"), 0o600)
+	if _, err := Load(p); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(filepath.Join(t.TempDir(), "missing.yml")); err == nil {
+		t.Error("want error for missing file")
+	}
+}

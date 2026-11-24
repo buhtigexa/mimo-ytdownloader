@@ -1,0 +1,6 @@
+bin/
+ytgrab.yml
+*.pprof
+__pycache__/
+.ytgrab-archive.txt
+cmd/ytgrab/default.pgo
