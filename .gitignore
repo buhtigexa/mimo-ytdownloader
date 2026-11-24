@@ -1,5 +1,5 @@
 bin/
-ytgrab.yml
+/ytgrab.yml
 *.pprof
 __pycache__/
 .ytgrab-archive.txt

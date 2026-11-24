@@ -1,0 +1,22 @@
+# ytgrab config used inside the container. Mount a volume at /data.
+# To change it, mount your own file over /etc/ytgrab/ytgrab.yml.
+
+output_dir: /data/out           # downloads land here (the archive file too)
+workers: 4                      # parallel downloads (1..64). YouTube throttles past ~6-8
+attempts: 3
+retry_backoff_secs: 5
+timeout_secs: 900
+expand_playlists: true
+
+audio:
+  format: mp3                   # original | mp3 | m4a | opus | flac | wav
+  quality: "0"
+  embed_metadata: true
+  embed_thumbnail: false
+
+ytdlp:
+  path: yt-dlp                  # installed in the image
+  output_template: "%(title)s [%(id)s].%(ext)s"
+  skip_existing: true           # re-runs skip what is already in /data/out
+  concurrent_fragments: 4
+  extra_args: []
