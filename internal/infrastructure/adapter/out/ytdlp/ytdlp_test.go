@@ -136,6 +136,7 @@ case "$last" in
   *playlist?list=PLok*) printf 'https://www.youtube.com/watch?v=aaaaaaaaaa1\nhttps://www.youtube.com/shorts/aaaaaaaaaa2\n\n' ;;
   *playlist?list=PLbad*) echo 'ERROR: [youtube:tab] PLbad: Unable to download API page: HTTP Error 400: Bad Request' >&2; exit 1 ;;
   *saved*) echo /out/song.mp3 ;;
+  *relative*) echo song.mp3 ;;
   *skip*)  : ;;
   *429*)   echo 'ERROR: HTTP Error 429: Too Many Requests' >&2; exit 1 ;;
   *slow*)  sleep 30 & echo $! > ` + pidFile + `; wait ;;
@@ -151,6 +152,10 @@ esac
 func TestDownloadAgainstFakeBinary(t *testing.T) {
 	bin, _ := fakeYtDlp(t)
 	d := mustNew(t, props(bin, Original))
+	relativePath, err := filepath.Abs("song.mp3")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		url     string
@@ -159,6 +164,7 @@ func TestDownloadAgainstFakeBinary(t *testing.T) {
 		wantErr error
 	}{
 		{"https://saved", 5 * time.Second, domain.Fetched{Kind: domain.Saved, Path: "/out/song.mp3"}, nil},
+		{"https://relative", 5 * time.Second, domain.Fetched{Kind: domain.Saved, Path: relativePath}, nil},
 		{"https://skip", 5 * time.Second, domain.Fetched{Kind: domain.AlreadyPresent}, nil},
 		{"https://bad", 5 * time.Second, domain.Fetched{}, domain.ErrPermanent},
 		{"https://429", 5 * time.Second, domain.Fetched{}, domain.ErrTransient},

@@ -50,3 +50,16 @@ func TestReporterShowsEachTrackWithoutVerbose(t *testing.T) {
 		}
 	}
 }
+
+func TestReporterShowsHostPathForDockerDownload(t *testing.T) {
+	var b strings.Builder
+	r := New(&b, false)
+	r.SetHostDataDir("/home/marce/Music")
+	r.Finished(domain.Outcome{Job: domain.Job{URL: "https://youtu.be/abcdefghijk"}, Status: domain.StatusSaved, Path: "/data/out/My Song [abcdefghijk].mp3"})
+	if !strings.Contains(b.String(), "/home/marce/Music/out/My Song [abcdefghijk].mp3") {
+		t.Fatalf("saved path missing from output: %s", b.String())
+	}
+	if got := r.displayPath("/elsewhere/song.mp3"); got != "/elsewhere/song.mp3" {
+		t.Errorf("unmapped path = %q", got)
+	}
+}

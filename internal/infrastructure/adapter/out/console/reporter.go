@@ -5,6 +5,8 @@ package console
 import (
 	"fmt"
 	"io"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -20,6 +22,7 @@ type Reporter struct {
 	verbose      bool
 	done         atomic.Int64
 	searchFailed int
+	hostDataDir  string
 }
 
 var _ portout.ProgressReporter = (*Reporter)(nil)
@@ -31,6 +34,9 @@ func New(w io.Writer, verbose bool) *Reporter {
 
 // SetSearchFailures includes tracks without a usable URL in the final report.
 func (r *Reporter) SetSearchFailures(n int) { r.searchFailed = n }
+
+// SetHostDataDir maps /data paths from Docker to the bind mount on the host.
+func (r *Reporter) SetHostDataDir(dir string) { r.hostDataDir = dir }
 
 func (r *Reporter) printf(format string, a ...any) {
 	r.mu.Lock()
@@ -68,7 +74,7 @@ func (r *Reporter) Finished(o domain.Outcome) {
 
 	switch o.Status {
 	case domain.StatusSaved:
-		r.printf("[%6d] ok      %6.1fs  %s -> %s%s\n", n, secs, trackName(o.Job), o.Path, tries)
+		r.printf("[%6d] ok      %6.1fs  %s -> %s%s\n", n, secs, trackName(o.Job), r.displayPath(o.Path), tries)
 	case domain.StatusSkipped:
 		r.printf("[%6d] skip    %6.1fs  %s (already downloaded)\n", n, secs, trackName(o.Job))
 	case domain.StatusFailed:
@@ -76,6 +82,17 @@ func (r *Reporter) Finished(o domain.Outcome) {
 	case domain.StatusCanceled:
 		r.printf("[%6d] cancel  %6.1fs  %s\n", n, secs, trackName(o.Job))
 	}
+}
+
+func (r *Reporter) displayPath(path string) string {
+	if r.hostDataDir == "" || !filepath.IsAbs(r.hostDataDir) {
+		return path
+	}
+	rel, err := filepath.Rel("/data", path)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return path
+	}
+	return filepath.Join(r.hostDataDir, rel)
 }
 
 func (r *Reporter) Summary(s domain.Summary) {

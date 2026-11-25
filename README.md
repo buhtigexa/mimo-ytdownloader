@@ -31,6 +31,8 @@ Docker Compose mounts `MIMO_YTDOWNLOADER_DATA_DIR` from your computer at `/data`
 
 If you omit the variable, Compose uses `./data` in the repository root. Found URLs are saved to the original CSV after the search finishes. Progress and errors appear in the terminal.
 
+Each successful download prints the full file path on your computer. With the directory above, files are stored under `/path/to/your/files/out/`.
+
 For a song query, include the title and artist in one quoted argument. The app searches YouTube, checks candidate recordings and available audio quality, and reports a failed search if it cannot verify a suitable match. MP3 files are saved in the `out/` directory shown above.
 
 Each run starts up to 4 concurrent downloads by default; the configurable maximum is 5. By default, each download transfers one fragment at a time.

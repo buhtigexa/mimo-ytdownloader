@@ -88,6 +88,10 @@ func (d *Downloader) Download(ctx context.Context, job domain.Job) (domain.Fetch
 
 	// --print after_move:filepath prints the final path; silence == archive hit.
 	if path := lastLine(stdout); path != "" {
+		path, err = filepath.Abs(path)
+		if err != nil {
+			return domain.Fetched{}, fmt.Errorf("resolve downloaded file path: %w", err)
+		}
 		if isYouTube {
 			d.archive.add(id)
 		}

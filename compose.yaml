@@ -6,6 +6,8 @@ services:
     # Run as your own user so files in ./data belong to you (Linux).
     # Defaults to 1000:1000; set HOST_UID/HOST_GID if yours differ (see `id`).
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      MIMO_YTDOWNLOADER_HOST_DATA_DIR: ${MIMO_YTDOWNLOADER_DATA_DIR:-${PWD}/data}
     volumes:
       - ${MIMO_YTDOWNLOADER_DATA_DIR:-./data}:/data  # input files in, downloads out (<mounted directory>/out)
     command: ["/data/urls.txt"]

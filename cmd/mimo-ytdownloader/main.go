@@ -111,6 +111,7 @@ func app(ctx context.Context, flags cli.Flags, stdin io.Reader, stderr io.Writer
 		return domain.Summary{}, err
 	}
 	reporter := console.New(stderr, flags.Verbose)
+	reporter.SetHostDataDir(os.Getenv("MIMO_YTDOWNLOADER_HOST_DATA_DIR"))
 	resolver := ytdlp.NewSongResolver(props.Bin)
 	input, queryLabel := flags.Input, ""
 	if cli.IsSongQuery(input) {
