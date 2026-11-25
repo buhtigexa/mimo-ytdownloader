@@ -16,6 +16,7 @@ const (
 type Fetched struct {
 	Kind FetchKind
 	Path string // set when Kind == Saved
+	Name string // title and artist read from the saved MP3, when available
 }
 
 // Status is the final state of a job.
@@ -33,6 +34,7 @@ type Outcome struct {
 	Job      Job
 	Status   Status
 	Path     string // StatusSaved only
+	Name     string // metadata label for a saved MP3, when available
 	Err      error  // StatusFailed only
 	Attempts int
 	Elapsed  time.Duration

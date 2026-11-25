@@ -220,7 +220,7 @@ func (b *DownloadBatch) download(ctx context.Context, job domain.Job) domain.Out
 	case f.Kind == domain.AlreadyPresent:
 		o = domain.Outcome{Job: job, Status: domain.StatusSkipped}
 	default:
-		o = domain.Outcome{Job: job, Status: domain.StatusSaved, Path: f.Path}
+		o = domain.Outcome{Job: job, Status: domain.StatusSaved, Path: f.Path, Name: f.Name}
 	}
 	o.Attempts, o.Elapsed = attempts, time.Since(start)
 	return o

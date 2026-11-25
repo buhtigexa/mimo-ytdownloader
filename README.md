@@ -34,6 +34,7 @@ Docker Compose mounts `MIMO_YTDOWNLOADER_DATA_DIR` from your computer at `/data`
 If you omit the variable, Compose uses `./data` in the repository root. Found URLs are saved to the original CSV after the search finishes. Progress and errors appear in the terminal.
 
 Each successful download prints the full file path on your computer. With the directory above, files are stored under `/path/to/your/files/out/`.
+For MP3 files, the completion line also shows the title and artist read from the file's ID3 tags when available; otherwise it keeps the input song label or URL. Tags reflect the source file and may be inaccurate.
 
 `--mp3` is optional: the Docker image uses MP3 by default. `--video` downloads video with audio, preferring MP4 when available. Audio and video use separate download archives, so saving one does not skip the other.
 

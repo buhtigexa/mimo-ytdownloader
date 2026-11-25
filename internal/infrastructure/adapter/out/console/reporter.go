@@ -74,7 +74,11 @@ func (r *Reporter) Finished(o domain.Outcome) {
 
 	switch o.Status {
 	case domain.StatusSaved:
-		r.printf("[%6d] ok      %6.1fs  %s -> %s%s\n", n, secs, trackName(o.Job), r.displayPath(o.Path), tries)
+		label := trackName(o.Job)
+		if o.Name != "" {
+			label = "ID3: " + o.Name
+		}
+		r.printf("[%6d] ok      %6.1fs  %s -> %s%s\n", n, secs, label, r.displayPath(o.Path), tries)
 	case domain.StatusSkipped:
 		r.printf("[%6d] skip    %6.1fs  %s (already downloaded)\n", n, secs, trackName(o.Job))
 	case domain.StatusFailed:

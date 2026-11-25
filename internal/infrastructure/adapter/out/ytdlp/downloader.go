@@ -26,6 +26,7 @@ type Downloader struct {
 	bin     string
 	args    []string // built once, shared read-only by every call
 	ffmpeg  string   // binary to preflight; "" when not transcoding
+	ffprobe string   // reads the completed MP3's ID3 tags for CLI output
 	archive *archive
 }
 
@@ -38,6 +39,7 @@ func New(p Properties) (*Downloader, error) {
 		return nil, fmt.Errorf("read download archive: %w", err)
 	}
 	d := &Downloader{bin: p.Bin, args: BuildArgs(p), archive: a}
+	d.ffprobe = "ffprobe"
 	if p.Video || p.Format.NeedsFFmpeg() {
 		d.ffmpeg = "ffmpeg"
 		if p.FFmpegLocation != "" {
@@ -45,6 +47,13 @@ func New(p Properties) (*Downloader, error) {
 			if isDir(p.FFmpegLocation) {
 				d.ffmpeg = filepath.Join(p.FFmpegLocation, "ffmpeg")
 			}
+		}
+	}
+	if p.FFmpegLocation != "" {
+		if isDir(p.FFmpegLocation) {
+			d.ffprobe = filepath.Join(p.FFmpegLocation, "ffprobe")
+		} else {
+			d.ffprobe = filepath.Join(filepath.Dir(p.FFmpegLocation), "ffprobe")
 		}
 	}
 	return d, nil
@@ -95,7 +104,7 @@ func (d *Downloader) Download(ctx context.Context, job domain.Job) (domain.Fetch
 		if isYouTube {
 			d.archive.add(id)
 		}
-		return domain.Fetched{Kind: domain.Saved, Path: path}, nil
+		return domain.Fetched{Kind: domain.Saved, Path: path, Name: readMP3Name(ctx, d.ffprobe, path)}, nil
 	}
 	return domain.Fetched{Kind: domain.AlreadyPresent}, nil
 }
