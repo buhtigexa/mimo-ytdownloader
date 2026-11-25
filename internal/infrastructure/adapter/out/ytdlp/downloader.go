@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	portout "github.com/buhtigexa/mimo-ytdownloader/internal/application/port/out"
@@ -23,11 +24,16 @@ const waitDelay = 3 * time.Second
 // the download archive, which are answered from memory. Safe for concurrent
 // use: bin, args and ffmpeg are read-only after New; archive has its own lock.
 type Downloader struct {
-	bin     string
-	args    []string // built once, shared read-only by every call
-	ffmpeg  string   // binary to preflight; "" when not transcoding
-	ffprobe string   // reads the completed MP3's ID3 tags for CLI output
-	archive *archive
+	bin       string
+	args      []string // built once, shared read-only by every call
+	ffmpeg    string   // binary to preflight; "" when not transcoding
+	ffprobe   string   // reads the completed MP3's ID3 tags for CLI output
+	archive   *archive
+	outputDir string
+	format    AudioFormat
+	video     bool
+	pathsOnce sync.Once
+	paths     map[string]string
 }
 
 var _ portout.AudioDownloader = (*Downloader)(nil)
@@ -38,7 +44,7 @@ func New(p Properties) (*Downloader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read download archive: %w", err)
 	}
-	d := &Downloader{bin: p.Bin, args: BuildArgs(p), archive: a}
+	d := &Downloader{bin: p.Bin, args: BuildArgs(p), archive: a, outputDir: p.OutputDir, format: p.Format, video: p.Video}
 	d.ffprobe = "ffprobe"
 	if p.Video || p.Format.NeedsFFmpeg() {
 		d.ffmpeg = "ffmpeg"
@@ -87,7 +93,7 @@ func (d *Downloader) Preflight(ctx context.Context) (string, error) {
 func (d *Downloader) Download(ctx context.Context, job domain.Job) (domain.Fetched, error) {
 	id, isYouTube := domain.YouTubeID(job.URL)
 	if isYouTube && d.archive.has(id) {
-		return domain.Fetched{Kind: domain.AlreadyPresent}, nil // no process spawned
+		return d.archivedFile(ctx, id), nil // no yt-dlp process spawned
 	}
 
 	stdout, err := run(ctx, d.bin, d.args, job.URL)
@@ -105,6 +111,9 @@ func (d *Downloader) Download(ctx context.Context, job domain.Job) (domain.Fetch
 			d.archive.add(id)
 		}
 		return domain.Fetched{Kind: domain.Saved, Path: path, Name: readMP3Name(ctx, d.ffprobe, path)}, nil
+	}
+	if isYouTube {
+		return d.archivedFile(ctx, id), nil
 	}
 	return domain.Fetched{Kind: domain.AlreadyPresent}, nil
 }

@@ -80,7 +80,15 @@ func (r *Reporter) Finished(o domain.Outcome) {
 		}
 		r.printf("[%6d] ok      %6.1fs  %s -> %s%s\n", n, secs, label, r.displayPath(o.Path), tries)
 	case domain.StatusSkipped:
-		r.printf("[%6d] skip    %6.1fs  %s (already downloaded)\n", n, secs, trackName(o.Job))
+		if o.Path != "" {
+			label := trackName(o.Job)
+			if o.Name != "" {
+				label = "ID3: " + o.Name
+			}
+			r.printf("[%6d] skip    %6.1fs  %s -> %s (already downloaded)\n", n, secs, label, r.displayPath(o.Path))
+		} else {
+			r.printf("[%6d] skip    %6.1fs  %s (archived; file path unavailable)\n", n, secs, trackName(o.Job))
+		}
 	case domain.StatusFailed:
 		r.printf("[%6d] FAIL    %6.1fs  line %d: %s -> %v%s\n", n, secs, o.Job.Line, trackName(o.Job), o.Err, tries)
 	case domain.StatusCanceled:

@@ -73,3 +73,17 @@ func TestReporterShowsMP3TagsWithPath(t *testing.T) {
 		t.Fatalf("metadata and path missing: %s", b.String())
 	}
 }
+
+func TestReporterShowsSkippedMP3TagsWithPath(t *testing.T) {
+	var b strings.Builder
+	r := New(&b, false)
+	r.SetHostDataDir("/home/marce/Music")
+	r.Finished(domain.Outcome{Job: domain.Job{URL: "https://youtu.be/abcdefghijk"}, Status: domain.StatusSkipped, Name: "Artist - Song", Path: "/data/out/Song [abcdefghijk].mp3"})
+	if !strings.Contains(b.String(), "ID3: Artist - Song -> /home/marce/Music/out/Song [abcdefghijk].mp3 (already downloaded)") {
+		t.Fatalf("skip metadata and path missing: %s", b.String())
+	}
+	r.Finished(domain.Outcome{Job: domain.Job{URL: "https://youtu.be/missingfile"}, Status: domain.StatusSkipped})
+	if !strings.Contains(b.String(), "file path unavailable") {
+		t.Fatalf("missing file status absent: %s", b.String())
+	}
+}

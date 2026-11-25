@@ -15,7 +15,7 @@ const (
 // Fetched is the result of a successful download.
 type Fetched struct {
 	Kind FetchKind
-	Path string // set when Kind == Saved
+	Path string // saved file path, including a resolved archive hit when available
 	Name string // title and artist read from the saved MP3, when available
 }
 
@@ -33,8 +33,8 @@ const (
 type Outcome struct {
 	Job      Job
 	Status   Status
-	Path     string // StatusSaved only
-	Name     string // metadata label for a saved MP3, when available
+	Path     string // saved file path, including a resolved skip when available
+	Name     string // metadata label for a saved or skipped MP3, when available
 	Err      error  // StatusFailed only
 	Attempts int
 	Elapsed  time.Duration

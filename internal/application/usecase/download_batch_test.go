@@ -82,6 +82,16 @@ func TestDownloadPreservesMP3MetadataLabel(t *testing.T) {
 	}
 }
 
+func TestDownloadPreservesSkippedMP3PathAndLabel(t *testing.T) {
+	url := "https://youtu.be/aaaaaaaaaaa"
+	dl := &scripted{steps: map[string][]step{url: {{f: domain.Fetched{Kind: domain.AlreadyPresent, Path: "/out/song.mp3", Name: "Artist - Title"}}}}}
+	uc := NewDownloadBatch(dl, nil, &recorder{}, policy(1, 1))
+	o := uc.download(t.Context(), domain.Job{URL: url})
+	if o.Status != domain.StatusSkipped || o.Name != "Artist - Title" || o.Path != "/out/song.mp3" {
+		t.Fatalf("outcome = %+v", o)
+	}
+}
+
 // seq turns a slice into the streaming input the use case consumes.
 func seq(js []domain.Job) iter.Seq2[domain.Job, error] {
 	return func(yield func(domain.Job, error) bool) {

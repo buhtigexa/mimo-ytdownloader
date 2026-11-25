@@ -218,7 +218,7 @@ func (b *DownloadBatch) download(ctx context.Context, job domain.Job) domain.Out
 	case err != nil:
 		o = failure(ctx, job, err)
 	case f.Kind == domain.AlreadyPresent:
-		o = domain.Outcome{Job: job, Status: domain.StatusSkipped}
+		o = domain.Outcome{Job: job, Status: domain.StatusSkipped, Path: f.Path, Name: f.Name}
 	default:
 		o = domain.Outcome{Job: job, Status: domain.StatusSaved, Path: f.Path, Name: f.Name}
 	}
