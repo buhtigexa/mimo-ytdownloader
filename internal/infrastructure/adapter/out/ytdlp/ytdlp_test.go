@@ -84,6 +84,20 @@ func TestBuildArgs(t *testing.T) {
 	}
 }
 
+func TestBuildVideoArgs(t *testing.T) {
+	p := props("yt-dlp", MP3)
+	p.Video = true
+	args := BuildArgs(p)
+	if !hasSeq(args, []string{"--format", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b", "--merge-output-format", "mp4"}) {
+		t.Fatalf("video format missing: %v", args)
+	}
+	for _, forbidden := range []string{"--extract-audio", "--audio-format", "--audio-quality"} {
+		if slices.Contains(args, forbidden) {
+			t.Errorf("video args contain %q: %v", forbidden, args)
+		}
+	}
+}
+
 func TestParseAudioFormat(t *testing.T) {
 	tests := []struct {
 		in      string

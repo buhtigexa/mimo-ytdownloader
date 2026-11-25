@@ -9,9 +9,11 @@ import (
 	"io"
 )
 
-const Usage = `usage: mimo-ytdownloader [-c config.yml] [-v] [-url-column NAME] <SONG_QUERY | URL | urls.txt | urls.csv | ->
+const Usage = `usage: mimo-ytdownloader [--mp3 | --video] [-c config.yml] [-v] [-url-column NAME] <SONG_QUERY | URL | urls.txt | urls.csv | ->
 
 flags:
+  --mp3                 download MP3 audio (default)
+  --video               download video with audio
   -c, -config FILE      YAML config (default: ./mimo-ytdownloader.yml)
   -v, -verbose          log when each worker picks up a URL
   -url-column NAME      CSV column holding the URLs (default: url)
@@ -38,6 +40,8 @@ type Flags struct {
 	Verbose    bool
 	CPUProfile string
 	URLColumn  string
+	MP3        bool
+	Video      bool
 }
 
 // ParseFlags parses os.Args[1:] with the standard flag package.
@@ -52,10 +56,15 @@ func ParseFlags(args []string, stderr io.Writer) (Flags, error) {
 	fs.BoolVar(&f.Verbose, "verbose", false, "")
 	fs.StringVar(&f.CPUProfile, "cpuprofile", "", "")
 	fs.StringVar(&f.URLColumn, "url-column", "url", "")
+	fs.BoolVar(&f.MP3, "mp3", false, "")
+	fs.BoolVar(&f.Video, "video", false, "")
 
 	// On -h/-help, fs.Parse itself calls fs.Usage and returns flag.ErrHelp.
 	if err := fs.Parse(args); err != nil {
 		return Flags{}, err
+	}
+	if f.MP3 && f.Video {
+		return Flags{}, errors.New("--mp3 and --video cannot be used together")
 	}
 	switch fs.NArg() {
 	case 0:

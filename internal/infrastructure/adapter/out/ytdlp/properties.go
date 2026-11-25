@@ -47,6 +47,7 @@ type Properties struct {
 	OutputDir           string
 	OutputTemplate      string
 	Format              AudioFormat
+	Video               bool
 	Quality             string
 	EmbedMetadata       bool
 	EmbedThumbnail      bool

@@ -38,7 +38,7 @@ func New(p Properties) (*Downloader, error) {
 		return nil, fmt.Errorf("read download archive: %w", err)
 	}
 	d := &Downloader{bin: p.Bin, args: BuildArgs(p), archive: a}
-	if p.Format.NeedsFFmpeg() {
+	if p.Video || p.Format.NeedsFFmpeg() {
 		d.ffmpeg = "ffmpeg"
 		if p.FFmpegLocation != "" {
 			d.ffmpeg = p.FFmpegLocation
@@ -67,7 +67,7 @@ func (d *Downloader) Preflight(ctx context.Context) (string, error) {
 	}
 	if d.ffmpeg != "" {
 		if err := exec.CommandContext(ctx, d.ffmpeg, "-version").Run(); err != nil {
-			return "", fmt.Errorf("ffmpeg not usable but audio.format needs it (install it, set ytdlp.ffmpeg_location, or use format: original): %w", err)
+			return "", fmt.Errorf("ffmpeg not usable for the selected download mode (install it or set ytdlp.ffmpeg_location): %w", err)
 		}
 	}
 	return string(bytes.TrimSpace(out)), nil
@@ -135,7 +135,11 @@ func run(ctx context.Context, bin string, args []string, url string) ([]byte, er
 func BuildArgs(p Properties) []string {
 	args := make([]string, 0, 40)
 	args = append(args, "--no-playlist", "--no-progress", "--ignore-config")
-	args = append(args, "--format", "bestaudio/best")
+	if p.Video {
+		args = append(args, "--format", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b", "--merge-output-format", "mp4")
+	} else {
+		args = append(args, "--format", "bestaudio/best")
+	}
 	args = append(args, "--paths", p.OutputDir)
 	args = append(args, "--output", p.OutputTemplate)
 	args = append(args, "--print", "after_move:filepath")
@@ -146,7 +150,7 @@ func BuildArgs(p Properties) []string {
 	if p.ArchiveFile != "" {
 		args = append(args, "--download-archive", p.ArchiveFile)
 	}
-	if p.Format.NeedsFFmpeg() {
+	if !p.Video && p.Format.NeedsFFmpeg() {
 		args = append(args, "--extract-audio", "--audio-format", string(p.Format), "--audio-quality", p.Quality)
 	}
 	if p.EmbedMetadata {

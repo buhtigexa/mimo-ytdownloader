@@ -72,6 +72,35 @@ func TestRunDownloadsDirectURL(t *testing.T) {
 	}
 }
 
+func TestRunVideoUsesSeparateArchive(t *testing.T) {
+	dir := t.TempDir()
+	outDir := filepath.Join(dir, "out")
+	if err := os.Mkdir(outDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outDir, ".mimo-ytdownloader-archive.txt"), []byte("youtube dQw4w9WgXcQ\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bin := writeFile(t, dir, "yt-dlp", "#!/bin/sh\n[ \"$1\" = --version ] && { echo fake-version; exit 0; }\necho /out/video.mp4\n")
+	if err := os.Chmod(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ffmpeg := writeFile(t, dir, "ffmpeg", "#!/bin/sh\nexit 0\n")
+	if err := os.Chmod(ffmpeg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := writeFile(t, dir, "mimo-ytdownloader.yml", yamlConfig(dir, bin, "  ffmpeg_location: "+ffmpeg+"\n"))
+	url := "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+	var videoOut strings.Builder
+	if code := run([]string{"-c", cfg, "--video", url}, nil, &videoOut); code != 0 || !strings.Contains(videoOut.String(), "as video") || !strings.Contains(videoOut.String(), "1 saved") {
+		t.Fatalf("video exit %d:\n%s", code, videoOut.String())
+	}
+	var audioOut strings.Builder
+	if code := run([]string{"-c", cfg, "--mp3", url}, nil, &audioOut); code != 0 || !strings.Contains(audioOut.String(), "as mp3") || !strings.Contains(audioOut.String(), "1 skipped") {
+		t.Fatalf("audio exit %d:\n%s", code, audioOut.String())
+	}
+}
+
 func TestRunReadsStdinWithoutPlaylists(t *testing.T) {
 	dir := t.TempDir()
 	cfg := writeFile(t, dir, "mimo-ytdownloader.yml", yamlConfig(dir, fakeYtDlp(t, dir), "expand_playlists: false\n"))

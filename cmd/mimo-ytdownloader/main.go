@@ -1,4 +1,4 @@
-// Command mimo-ytdownloader downloads the audio of every URL in a file, in parallel,
+// Command mimo-ytdownloader downloads each URL in a file, in parallel,
 // via yt-dlp.
 //
 // main is the composition root: it loads config, builds the adapters, wires
@@ -102,6 +102,14 @@ func app(ctx context.Context, flags cli.Flags, stdin io.Reader, stderr io.Writer
 
 	// out adapters
 	props := cfg.YtDlpProperties()
+	if flags.Video {
+		props.Video = true
+		if props.ArchiveFile != "" {
+			props.ArchiveFile += ".video"
+		}
+	} else if flags.MP3 {
+		props.Format = ytdlp.MP3
+	}
 	downloader, err := ytdlp.New(props)
 	if err != nil {
 		return domain.Summary{}, err
@@ -151,8 +159,12 @@ func app(ctx context.Context, flags cli.Flags, stdin io.Reader, stderr io.Writer
 	uc := usecase.NewDownloadBatch(downloader, playlists, reporter, cfg.DownloadPolicy())
 
 	// in adapter
+	mode := string(props.Format)
+	if props.Video {
+		mode = "video"
+	}
 	fmt.Fprintf(stderr, "mimo-ytdownloader: %s -> %s as %s (up to %d workers, yt-dlp %s, %d already in archive)\n\n",
-		flags.Input, cfg.OutputDir, props.Format, cfg.Workers, version, downloader.Archived())
+		flags.Input, cfg.OutputDir, mode, cfg.Workers, version, downloader.Archived())
 	controller := cli.NewController(uc, stdin, flags.URLColumn)
 	var sum domain.Summary
 	if queryLabel != "" {
