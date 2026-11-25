@@ -26,6 +26,15 @@ func (c *Controller) Handle(ctx context.Context, input string) (domain.Summary, 
 	return c.useCase.Execute(ctx, Jobs(input, c.stdin, c.urlColumn))
 }
 
+// HandleResolved downloads one URL while reporting the user's song query.
+func (c *Controller) HandleResolved(ctx context.Context, url, label string) (domain.Summary, error) {
+	return c.useCase.Execute(ctx, func(yield func(domain.Job, error) bool) {
+		job, err := record(1, url)
+		job.Label = label
+		yield(job, err)
+	})
+}
+
 // Exit codes.
 const (
 	ExitOK          = 0

@@ -110,14 +110,36 @@ func app(ctx context.Context, flags cli.Flags, stdin io.Reader, stderr io.Writer
 	if err != nil {
 		return domain.Summary{}, err
 	}
+	reporter := console.New(stderr, flags.Verbose)
+	resolver := ytdlp.NewSongResolver(props.Bin)
+	input, queryLabel := flags.Input, ""
+	if cli.IsSongQuery(input) {
+		queryLabel = input
+		fmt.Fprintf(stderr, "mimo-ytdownloader: searching for %q\n", queryLabel)
+		url, searchErr := cli.ResolveQueryWithRetry(ctx, resolver, queryLabel, cfg.DownloadPolicy(), stderr)
+		if ctx.Err() != nil {
+			return domain.Summary{}, ctx.Err()
+		}
+		if searchErr != nil || url == "" {
+			if searchErr != nil {
+				fmt.Fprintf(stderr, "  search FAIL: %s -> %v\n", queryLabel, searchErr)
+			} else {
+				fmt.Fprintf(stderr, "  search FAIL: %s -> no matching studio video at 128 kbps or higher\n", queryLabel)
+			}
+			reporter.SetSearchFailures(1)
+			reporter.Summary(domain.Summary{})
+			return domain.Summary{Total: 1, Failed: 1}, nil
+		}
+		fmt.Fprintf(stderr, "  search ok: %s -> %s\n", queryLabel, url)
+		input = url
+	}
 	searchFailed := 0
 	if flags.URLColumn == "url" {
-		searchFailed, err = cli.EnrichCSV(ctx, flags.Input, ytdlp.NewSongResolver(props.Bin), stderr, cfg.DownloadPolicy())
+		searchFailed, err = cli.EnrichCSV(ctx, input, resolver, stderr, cfg.DownloadPolicy())
 		if err != nil {
 			return domain.Summary{}, err
 		}
 	}
-	reporter := console.New(stderr, flags.Verbose)
 	reporter.SetSearchFailures(searchFailed)
 	var playlists portout.PlaylistResolver // nil interface: expansion disabled
 	if cfg.ExpandPlaylists {
@@ -130,7 +152,13 @@ func app(ctx context.Context, flags cli.Flags, stdin io.Reader, stderr io.Writer
 	// in adapter
 	fmt.Fprintf(stderr, "mimo-ytdownloader: %s -> %s as %s (up to %d workers, yt-dlp %s, %d already in archive)\n\n",
 		flags.Input, cfg.OutputDir, props.Format, cfg.Workers, version, downloader.Archived())
-	sum, err := cli.NewController(uc, stdin, flags.URLColumn).Handle(ctx, flags.Input)
+	controller := cli.NewController(uc, stdin, flags.URLColumn)
+	var sum domain.Summary
+	if queryLabel != "" {
+		sum, err = controller.HandleResolved(ctx, input, queryLabel)
+	} else {
+		sum, err = controller.Handle(ctx, input)
+	}
 	sum.Failed += searchFailed
 	sum.Total += searchFailed
 	return sum, err

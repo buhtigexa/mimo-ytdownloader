@@ -9,7 +9,7 @@ import (
 	"io"
 )
 
-const Usage = `usage: mimo-ytdownloader [-c config.yml] [-v] [-url-column NAME] <URL | urls.txt | urls.csv | ->
+const Usage = `usage: mimo-ytdownloader [-c config.yml] [-v] [-url-column NAME] <SONG_QUERY | URL | urls.txt | urls.csv | ->
 
 flags:
   -c, -config FILE      YAML config (default: ./mimo-ytdownloader.yml)
@@ -17,11 +17,12 @@ flags:
   -url-column NAME      CSV column holding the URLs (default: url)
   -cpuprofile FILE      write a CPU profile (for PGO: cp it to cmd/mimo-ytdownloader/default.pgo)
 
-input: http(s) URL -> download that URL;
+input: quoted song title and artist -> search for a studio recording;
+       http(s) URL -> download that URL;
        *.txt -> one URL per line;
        *.csv -> CSV with a header row, URLs read from the url column;
        artist + title columns -> missing URLs are searched and saved to CSV;
-       anything else -> one URL per line. URL lists are streamed;
+       other existing files -> one URL per line. URL lists are streamed;
        song CSVs are loaded into memory while missing URLs are filled.
 
 exit codes: 0 ok, 1 some downloads failed, 2 usage/config error, 130 interrupted
@@ -58,11 +59,11 @@ func ParseFlags(args []string, stderr io.Writer) (Flags, error) {
 	}
 	switch fs.NArg() {
 	case 0:
-		return Flags{}, errors.New("missing URL or input file")
+		return Flags{}, errors.New("missing song query, URL or input file")
 	case 1:
 		f.Input = fs.Arg(0)
 		return f, nil
 	default:
-		return Flags{}, errors.New("only one URL or input file allowed")
+		return Flags{}, errors.New("only one song query, URL or input file allowed")
 	}
 }

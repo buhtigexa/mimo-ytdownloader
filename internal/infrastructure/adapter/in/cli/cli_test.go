@@ -25,10 +25,10 @@ func TestParseFlags(t *testing.T) {
 		{[]string{"-config=y.yml", "urls.txt"}, Flags{Config: "y.yml", Input: "urls.txt", URLColumn: "url"}, ""},
 		{[]string{"urls.txt"}, Flags{Config: "mimo-ytdownloader.yml", Input: "urls.txt", URLColumn: "url"}, ""},
 		{[]string{"-"}, Flags{Config: "mimo-ytdownloader.yml", Input: "-", URLColumn: "url"}, ""},
-		{[]string{}, Flags{}, "missing URL or input"},
-		{[]string{"a", "b"}, Flags{}, "only one URL or input"},
+		{[]string{}, Flags{}, "missing song query, URL or input"},
+		{[]string{"a", "b"}, Flags{}, "only one song query, URL or input"},
 		{[]string{"-nope", "a"}, Flags{}, "not defined"},
-		{[]string{"a", "-c"}, Flags{}, "only one URL or input"}, // flag pkg stops at first positional
+		{[]string{"a", "-c"}, Flags{}, "only one song query, URL or input"}, // flag pkg stops at first positional
 		{[]string{"-c"}, Flags{}, "needs an argument"},
 	}
 	for _, tt := range tests {
@@ -189,6 +189,36 @@ func TestControllerHandle(t *testing.T) {
 	uc := &countingUseCase{}
 	if s, err := NewController(uc, nil, "url").Handle(t.Context(), file); err != nil || s.Saved != 2 {
 		t.Errorf("csv: %+v, %v", s, err)
+	}
+	resolved := &countingUseCase{}
+	if s, err := NewController(resolved, nil, "url").HandleResolved(t.Context(), "https://youtu.be/dQw4w9WgXcQ", "Song Artist"); err != nil || s.Saved != 1 {
+		t.Errorf("resolved: %+v, %v", s, err)
+	}
+}
+
+func TestIsSongQuery(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "song list")
+	if err := os.WriteFile(file, []byte(""), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		input string
+		want  bool
+	}{
+		{"Mira a tu alrededor Alejandro Lerner", true},
+		{"Blondie", true},
+		{"https://youtu.be/dQw4w9WgXcQ", false},
+		{"songs.csv", false},
+		{"urls.txt", false},
+		{"/data/songs.csv", false},
+		{"-", false},
+		{"", false},
+		{file, false},
+	} {
+		if got := IsSongQuery(tt.input); got != tt.want {
+			t.Errorf("IsSongQuery(%q) = %t, want %t", tt.input, got, tt.want)
+		}
 	}
 }
 

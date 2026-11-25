@@ -20,6 +20,11 @@ type SongResolver interface {
 	Resolve(context.Context, string, string) (string, error)
 }
 
+// QueryResolver searches for a song from a free-text title and artist query.
+type QueryResolver interface {
+	ResolveQuery(context.Context, string) (string, error)
+}
+
 // EnrichCSV fills the url column in a song CSV before the usual download
 // pipeline reads it. The original file is replaced atomically only after all
 // searches finish, so an interrupted lookup does not leave a partial CSV.
@@ -125,16 +130,30 @@ func EnrichCSV(ctx context.Context, path string, resolver SongResolver, report i
 }
 
 func resolveWithRetry(ctx context.Context, resolver SongResolver, artist, title string, policy model.DownloadPolicy, report io.Writer, current, total int) (string, error) {
+	return lookupWithRetry(ctx, func(ctx context.Context) (string, error) {
+		return resolver.Resolve(ctx, artist, title)
+	}, artist+" / "+title, policy, report, current, total)
+}
+
+// ResolveQueryWithRetry applies the same timeout and transient-error policy
+// used for song CSV lookups.
+func ResolveQueryWithRetry(ctx context.Context, resolver QueryResolver, query string, policy model.DownloadPolicy, report io.Writer) (string, error) {
+	return lookupWithRetry(ctx, func(ctx context.Context) (string, error) {
+		return resolver.ResolveQuery(ctx, query)
+	}, query, policy, report, 1, 1)
+}
+
+func lookupWithRetry(ctx context.Context, lookup func(context.Context) (string, error), label string, policy model.DownloadPolicy, report io.Writer, current, total int) (string, error) {
 	attempts := max(policy.Attempts, 1)
 	for attempt := 1; attempt <= attempts; attempt++ {
 		attemptCtx, cancel := context.WithTimeout(ctx, policy.Timeout)
-		url, err := resolver.Resolve(attemptCtx, artist, title)
+		url, err := lookup(attemptCtx)
 		cancel()
 		if err == nil || ctx.Err() != nil || attempt == attempts ||
 			(!errors.Is(err, domain.ErrTransient) && !errors.Is(err, context.DeadlineExceeded)) {
 			return url, err
 		}
-		fmt.Fprintf(report, "  search [%d/%d] retry %s / %s (attempt %d failed: %v)\n", current, total, artist, title, attempt, err)
+		fmt.Fprintf(report, "  search [%d/%d] retry %s (attempt %d failed: %v)\n", current, total, label, attempt, err)
 		timer := time.NewTimer(policy.Backoff * time.Duration(attempt))
 		select {
 		case <-ctx.Done():

@@ -19,6 +19,31 @@ func (f fakeSongResolver) Resolve(ctx context.Context, artist, title string) (st
 	return f(ctx, artist, title)
 }
 
+type fakeQueryResolver func(context.Context, string) (string, error)
+
+func (f fakeQueryResolver) ResolveQuery(ctx context.Context, query string) (string, error) {
+	return f(ctx, query)
+}
+
+func TestResolveQueryWithRetry(t *testing.T) {
+	calls := 0
+	resolver := fakeQueryResolver(func(_ context.Context, query string) (string, error) {
+		if query != "Mira a tu alrededor Alejandro Lerner" {
+			t.Errorf("query = %q", query)
+		}
+		calls++
+		if calls == 1 {
+			return "", domain.ErrTransient
+		}
+		return "https://youtu.be/aaaaaaaaaaa", nil
+	})
+	var report strings.Builder
+	url, err := ResolveQueryWithRetry(context.Background(), resolver, "Mira a tu alrededor Alejandro Lerner", model.DownloadPolicy{Attempts: 2, Timeout: time.Minute}, &report)
+	if err != nil || url != "https://youtu.be/aaaaaaaaaaa" || calls != 2 || !strings.Contains(report.String(), "retry") {
+		t.Fatalf("url=%q err=%v calls=%d report=%q", url, err, calls, report.String())
+	}
+}
+
 func TestEnrichCSVAddsURLAndKeepsUnmatchedSong(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "songs.csv")
 	if err := os.WriteFile(path, []byte("artist,title,youtube_search\nBlondie,Call Me,search\nPink Floyd,Another Brick in the Wall,search\n"), 0644); err != nil {

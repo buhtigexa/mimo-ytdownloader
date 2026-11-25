@@ -58,6 +58,21 @@ func isDirectURL(input string) bool {
 	return strings.HasPrefix(input, "https://") || strings.HasPrefix(input, "http://")
 }
 
+// IsSongQuery reports whether input is free text rather than a URL or file.
+// Existing files keep working even when their names contain spaces.
+func IsSongQuery(input string) bool {
+	if input == "-" || isDirectURL(input) || strings.ContainsAny(input, `/\`) {
+		return false
+	}
+	if ext := strings.ToLower(filepath.Ext(input)); ext == ".csv" || ext == ".txt" {
+		return false
+	}
+	if _, err := os.Stat(input); err == nil {
+		return false
+	}
+	return strings.TrimSpace(input) != ""
+}
+
 // textJobs parses one URL per line.
 func textJobs(r io.Reader) iter.Seq2[domain.Job, error] {
 	return func(yield func(domain.Job, error) bool) {

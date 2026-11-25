@@ -20,7 +20,7 @@ func TestRunUsageAndConfigErrors(t *testing.T) {
 		wantCode int
 		wantOut  string
 	}{
-		{[]string{}, 2, "missing URL or input file"},
+		{[]string{}, 2, "missing song query, URL or input file"},
 		{[]string{"-h"}, 0, "usage: mimo-ytdownloader"},
 		{[]string{"-c", bad, "urls.txt"}, 2, "audio.format: unknown audio format"},
 		{[]string{"-c", noBin, "urls.txt"}, 2, "yt-dlp not usable"},
@@ -90,5 +90,51 @@ echo '/tmp/Call Me.mp3'
 		!strings.Contains(out.String(), "start  line 2: Blondie / Call Me") ||
 		!strings.Contains(out.String(), "1 saved, 0 skipped, 1 failed") {
 		t.Fatalf("CSV=%s\noutput=%s", data, out.String())
+	}
+}
+
+func TestRunDownloadsFreeTextSongQuery(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "yt-dlp")
+	script := `#!/bin/sh
+[ "$1" = --version ] && { echo fake-version; exit 0; }
+case "$*" in
+  *ytsearch10:*) echo '{"entries":[{"id":"bbbbbbbbbbb","title":"Mira a tu alrededor","channel":"Alejandro Lerner - Topic"}]}' ;;
+  *--dump-single-json*) echo '{"id":"bbbbbbbbbbb","title":"Mira a tu alrededor","channel":"Alejandro Lerner - Topic","formats":[{"acodec":"opus","vcodec":"none","abr":160}]}' ;;
+  *) echo '/tmp/Mira a tu alrededor.mp3' ;;
+esac
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := filepath.Join(dir, "mimo-ytdownloader.yml")
+	if err := os.WriteFile(cfg, []byte("output_dir: "+dir+"\naudio:\n  format: original\nytdlp:\n  path: "+bin+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	query := "mira a tu alrededor alejandro lerner"
+	if code := run([]string{"-c", cfg, query}, nil, &out); code != 0 {
+		t.Fatalf("exit %d:\n%s", code, out.String())
+	}
+	for _, want := range []string{"search ok", "https://www.youtube.com/watch?v=bbbbbbbbbbb", query, "1 saved"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output lacks %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestRunReportsUnmatchedFreeTextQuery(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "yt-dlp")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n[ \"$1\" = --version ] && { echo fake-version; exit 0; }\necho '{\"entries\":[]}'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := filepath.Join(dir, "mimo-ytdownloader.yml")
+	if err := os.WriteFile(cfg, []byte("output_dir: "+dir+"\naudio:\n  format: original\nytdlp:\n  path: "+bin+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	if code := run([]string{"-c", cfg, "unknown song unknown artist"}, nil, &out); code != 1 || !strings.Contains(out.String(), "search FAIL") || !strings.Contains(out.String(), "1 failed") {
+		t.Fatalf("exit %d:\n%s", code, out.String())
 	}
 }

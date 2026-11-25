@@ -39,9 +39,27 @@ type songFormat struct {
 // means that no candidate met the metadata and bitrate rules.
 func (r *SongResolver) Resolve(ctx context.Context, artist, title string) (string, error) {
 	query := "ytsearch10:" + artist + " " + title + " official audio"
+	return r.resolve(ctx, query, artist+" / "+title, func(info songInfo) string {
+		return studioURL(info, artist, title)
+	})
+}
+
+// ResolveQuery searches a free-text title and artist query without guessing
+// where the title ends and the artist begins.
+func (r *SongResolver) ResolveQuery(ctx context.Context, query string) (string, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return "", fmt.Errorf("empty song query")
+	}
+	return r.resolve(ctx, "ytsearch10:"+query+" official audio", query, func(info songInfo) string {
+		return queryStudioURL(info, query)
+	})
+}
+
+func (r *SongResolver) resolve(ctx context.Context, query, label string, match func(songInfo) string) (string, error) {
 	out, err := run(ctx, r.bin, []string{"--ignore-config", "--flat-playlist", "--no-warnings", "--dump-single-json"}, query)
 	if err != nil {
-		return "", fmt.Errorf("search %q / %q: %w", artist, title, err)
+		return "", fmt.Errorf("search %q: %w", label, err)
 	}
 	var results songInfo
 	if err := json.Unmarshal(out, &results); err != nil {
@@ -49,7 +67,7 @@ func (r *SongResolver) Resolve(ctx context.Context, artist, title string) (strin
 	}
 	var candidates []string
 	for _, entry := range results.Entries {
-		if url := studioURL(entry, artist, title); url != "" {
+		if url := match(entry); url != "" {
 			candidates = append(candidates, url)
 		}
 		if len(candidates) == 3 {
@@ -73,7 +91,7 @@ func (r *SongResolver) Resolve(ctx context.Context, artist, title string) (strin
 			inspectErrors++
 			continue
 		}
-		if studioURL(detail, artist, title) != url {
+		if match(detail) != url {
 			continue
 		}
 		if bitrate := bestAudioBitrate(detail); bitrate >= 128 && bitrate > bestBitrate {
@@ -81,9 +99,41 @@ func (r *SongResolver) Resolve(ctx context.Context, artist, title string) (strin
 		}
 	}
 	if bestURL == "" && inspectErrors > 0 {
-		return "", fmt.Errorf("could not inspect audio for %q / %q (%d of %d candidates failed)", artist, title, inspectErrors, len(candidates))
+		return "", fmt.Errorf("could not inspect audio for %q (%d of %d candidates failed)", label, inspectErrors, len(candidates))
 	}
 	return bestURL, nil
+}
+
+func queryStudioURL(info songInfo, query string) string {
+	if info.IsLive || info.WasLive || info.LiveStatus == "is_live" || info.LiveStatus == "was_live" || info.LiveStatus == "is_upcoming" {
+		return ""
+	}
+	url := "https://www.youtube.com/watch?v=" + info.ID
+	if _, ok := domain.YouTubeID(url); !ok {
+		return ""
+	}
+	name := normalizeSongText(info.Title)
+	query = normalizeSongText(query)
+	metadata := name + " " + normalizeSongText(info.Channel+" "+info.Uploader)
+	for _, word := range strings.Fields(query) {
+		if !containsWords(metadata, word) {
+			return ""
+		}
+	}
+	for _, marker := range []string{"live", "en vivo", "ao vivo", "directo", "directa", "concert", "concierto", "performance", "unplugged", "acoustic", "acustico", "acustica", "session", "sesion", "cover", "karaoke", "remix", "instrumental"} {
+		if containsWords(name, marker) && !containsWords(query, marker) {
+			return ""
+		}
+	}
+	for _, marker := range []string{"official audio", "audio oficial", "official music video", "video oficial", "official video", "studio version"} {
+		if containsWords(name, marker) {
+			return url
+		}
+	}
+	if containsWords(normalizeSongText(info.Channel), "topic") {
+		return url
+	}
+	return ""
 }
 
 func studioURL(info songInfo, artist, title string) string {
